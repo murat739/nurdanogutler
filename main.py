@@ -441,7 +441,7 @@ veriler = [
     },
     {
         "ID": 56,
-        "Konu": "Kötülüğه İyilik",
+        "Konu": "Kötülüğe İyilik",
         "Öğüt": "Kötülüğe kötülükle karşılık vermek yerine, iyilikle mukabele edilmelidir.",
         "Örnek ve Tatbikat": "Size kaba davranan birine tebessüm ve tatlı dille karşılık vermek.",
         "Eser ve Detaylı Kaynak": "Mektubat",
@@ -479,7 +479,7 @@ veriler = [
         "Konu": "Kader",
         "Öğüt": "Başa gelen mukadder olaylara imanla yaklaşılmalı, isyan edilmemelidir.",
         "Örnek ve Tatbikat": "Beklenmedik bir kayıp karşısında metaneti korumak.",
-        "Eser ve Detaylı Kaynak": "Atıcı Söz / Yirmi Altıncı Söz",
+        "Eser ve Detaylı Kaynak": "Otuz İkinci Söz / Yirmi Altıncı Söz",
     },
     {
         "ID": 62,
@@ -693,7 +693,7 @@ veriler = [
     },
     {
         "ID": 92,
-        "Konu": "Hizmet Edebİ",
+        "Konu": "Hizmet Edebi",
         "Öğüt": "Ehl-i imanın inkişafına mani olacak tavırlardan kesinlikle kaçınılmalıdır.",
         "Örnek ve Tatbikat": "Topluluk içinde kırıcı tartışmalara girmemek.",
         "Eser ve Detaylı Kaynak": "Kastamonu Lahikası",
@@ -715,7 +715,7 @@ veriler = [
     {
         "ID": 95,
         "Konu": "Asayişi Koruma",
-        "Öğüt": "Asayişi ihlal edecek fitnelerden uzak durmak her müminin görevidir.",
+        "Öğüt": "Asayişi ihlal edecek fitnelerden uzak durmak her mümin görevidir.",
         "Örnek ve Tatbikat": "Toplumsal olaylarda sükuneti koruyup yapıcı olmak.",
         "Eser ve Detaylı Kaynak": "Şualar",
     },
@@ -948,7 +948,7 @@ veriler = [
         "Konu": "Kötü Zan",
         "Öğüt": "Delilsiz olarak başkaları hakkında kötü zan beslemekten sakınılmalıdır.",
         "Örnek ve Tatbikat": "İnsanlar hakkında peşin hüküm vermekten kaçınmak.",
-        "Eser ve Detaylı Kaynak": "Hucurat Tahlili / Lem'alar",
+        "Eser ve Detaylı Kaynak": "Lem'alar",
     },
     {
         "ID": 129,
