@@ -1,1917 +1,500 @@
-﻿import pandas as pd
+﻿from datetime import datetime
+import unicodedata
 import streamlit as st
 
-# --- SAYFA YAPILANDIRMASI ---
+# ================================================================================
+# 1. SAYFA YAPILANDIRMASI
+# ================================================================================
 st.set_page_config(
-    page_title="Risale-i Nur Nasihat, Düstur ve Örnekler Rehberi",
-    page_icon="📖",
+    page_title="Derin İlim: Hikmet Arşivi / Archive of Wisdom",
+    page_icon="📚",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-# --- CSS STİLİ ---
-st.markdown(
-    """
-    <style>
-        .nasihat-card {
-            background-color: #f9f9f9;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
-        }
-        .nasihat-header {
-            font-weight: bold;
-            color: #1f77b4;
-            font-size: 16px;
-            margin-bottom: 8px;
-        }
-        .nasihat-text {
-            font-size: 15px;
-            color: #333333;
-            margin-bottom: 5px;
-        }
-        .nasihat-footer {
-            font-size: 13px;
-            color: #666666;
-            font-style: italic;
-        }
-        .source-badge {
-            background-color: #D1FAE5;
-            color: #065F46;
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-        }
-        .telif-box {
-            background-color: #F8FAFC;
-            border: 1px solid #E2E8F0;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 30px;
-            font-size: 0.95rem;
-            color: #475569;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
+# ================================================================================
+# 2. DİL SEÇİMİ VE ÇEVİRİ SÖZLÜĞÜ (i18n)
+# ================================================================================
+if "lang" not in st.session_state:
+    st.session_state["lang"] = "TR"
+
+lang_choice = st.sidebar.selectbox(
+    "🌐 Dil / Language",
+    options=["TR", "EN"],
+    index=0 if st.session_state["lang"] == "TR" else 1,
+    key="lang_selectbox",
 )
 
-# --- DİL SEÇİMİ (SIDEBAR) ---
-st.sidebar.title("🌍 Dil / Language / Språk")
-dil_secimi = st.sidebar.selectbox("Dil Seçin / Select Language / Velg språk:", ["Türkçe", "English", "Norsk"])
+st.session_state["lang"] = lang_choice
+lang = st.session_state["lang"]
 
 # Arayüz Metinleri Sözlüğü
-ui_text = {
-    "Türkçe": {
-        "title": "📖 Risale-i Nur Nasihat, Düstur ve Örnekler Rehberi",
-        "subtitle": "Kapsamlı Manevi Eğitim ve Tefekkür Veritabanı (1-200 Tam Sürüm)",
-        "search_label": "🔍 Arama ve Filtreleme",
-        "search_input": "Konu, Öğüt veya Kelime Ara:",
-        "category_label": "Kategoriye Göre Seç:",
-        "all_categories": "Tümü",
-        "displayed_count": "📌 Görüntülenen Kayıtlar",
-        "col_konu": "Konu",
-        "col_ogut": "Öğüt",
-        "col_ornek": "Örnek ve Tatbikat",
-        "col_kaynak": "Eser ve Kaynak",
-        "warning_text": (
-            "⚠️ **Yasal Bilgilendirme ve Kullanım Şartları:**\n"
-            "Bu yazılım ve içerdiği veritabanı tamamen akademik, araştırma ve manevi gelişim "
-            "amacıyla hazırlanmıştır. **İçeriklerin kopyalanması, çoğaltılması veya ticari amaçlı "
-            "kullanılması kesinlikle yasaktır.** Sunulan eser özetleri, nasihatler ve düsturlar "
-            "rehberlik niteliğinde olup, hukuki veya resmi bir bağlayıcılığı bulunmamaktadır. "
-            "Sadece kişisel manevi yönün gelişimi için bilgi amaçlıdır."
-        ),
-        "telif_title": "📌 TELİF VE KULLANIM BİLDİRİMİ",
-        "telif_1": "<b>Amacı:</b> Bu uygulama tamamen <b>mânevi gelişim, eğitim ve tefekkür</b> amacıyla hazırlanmıştır.",
-        "telif_2": "<b>Ticari Kullanım Yasağı:</b> Uygulama içeriği hiçbir şekilde ticari amaçla kullanılamaz, satılamaz ve gelir elde etme aracına dönüştürülemez.",
-        "telif_3": "<b>Kopyalama Yasağı:</b> Uygulama içerisindeki metin ve kod yapısı izinsiz kopyalanamaz, çoğaltılamaz ve amacı dışında kullanılamaz.",
-        "telif_4": "<b>Sorumluluk Reddi:</b> Yazılımcı/Geliştirici, uygulamanın kullanımından doğabilecek doğrudan veya dolaylı hiçbir hukuki, idari veya cezai sorumluluğu kabul etmez. Kullanıcı uygulamaya erişerek bu şartları aynen kabul etmiş sayılır."
+translations = {
+    "TR": {
+        "page_title": "📚 Derin İlim: Hikmet ve Tefekkür Arşivi",
+        "page_subtitle": "Tasavvuf büyüklerinin, İslam alimlerinin hikmetli sözleri, Kur'an-ı Kerim ayetleri ve nebevi rehberliklerin tahkikli buluşma noktası.",
+        "search_label": "🔍 İçerik Ara (Zat, Söz, Ayet, Hadis veya Kaynak):",
+        "search_placeholder": "Aramak istediğiniz kelimeyi yazın...",
+        "select_person": "Hakikatine Müracaat Edilecek Zât:",
+        "all_option": "Tümü",
+        "no_results": "Aradığınız kriterlere uygun sonuç bulunamadı.",
+        "results_found": "Arama kriterlerinize uygun **{}** kayıt bulundu.",
+        "word_title": "📜 Hikmetli Söz",
+        "verse_title": "📖 İlahi Kelam (Ayet-i Kerime)",
+        "hadith_title": "☀️ Nebevi Işık (Hadis-i Şerif)",
+        "source_label": "Kaynak",
+        "category_label": "Kategori",
+        "item_id": "Kayıt #",
+        "sidebar_title": "📌 Sistem Güvencesi",
+        "info_note": "Bu arşiv, İslam düşünce tarihi ve tasavvuf büyüklerinin hikmetli sözlerini, ayet ve hadislerle tahkik ederek bir araya getiren akademik ve manevi bir çalışmadır.",
+        "legal_warning_title": "⚖️ Yasal Uyarı ve Sorumluluk Reddi",
+        "legal_warning_body": "Bu arşivde yer alan ayet mealleri, hadis-i şerifler, İslam alimleri ve tasavvuf büyüklerinin sözleri tamamen irşat, tefekkür, ilmi araştırma ve bilgilendirme amaçlı olarak derlenmiştir. Sunulan içeriklerin doğruluğu, akademik tahkiki veya yorum farkları tamamen kaynak eserlerin kendi literatürüne dayanmaktadır.",
+        "daily_guide_title": "🗓️ Günün Rehberi",
+        "daily_climate": "\"{}\" iklimi.",
     },
-    "English": {
-        "title": "📖 Risale-i Nur Advice, Principle and Examples Guide",
-        "subtitle": "Comprehensive Spiritual Education and Reflection Database (1-200 Full Version)",
-        "search_label": "🔍 Search & Filtering",
-        "search_input": "Search Topic, Advice or Keyword:",
-        "category_label": "Filter by Category:",
-        "all_categories": "All",
-        "displayed_count": "📌 Displayed Records",
-        "col_konu": "Topic",
-        "col_ogut": "Advice",
-        "col_ornek": "Example & Practice",
-        "col_kaynak": "Work & Source",
-        "warning_text": (
-            "⚠️ **Legal Notice and Terms of Use:**\n"
-            "This software and its database have been prepared entirely for academic, research, "
-            "and spiritual development purposes. **Copying, reproduction, or commercial use of "
-            "the contents is strictly prohibited.** The provided summaries, advices, and principles "
-            "are for guidance and have no official or legal binding force. They are intended solely "
-            "for personal spiritual enrichment."
-        ),
-        "telif_title": "📌 COPYRIGHT AND TERMS OF USE",
-        "telif_1": "<b>Purpose:</b> This application is prepared entirely for <b>spiritual growth, education, and reflection</b> purposes.",
-        "telif_2": "<b>Commercial Use Ban:</b> The application content cannot be used commercially, sold, or turned into a revenue-generating tool in any way.",
-        "telif_3": "<b>Copying Ban:</b> The text and code structure within the application cannot be copied, reproduced, or used outside its intended purpose without permission.",
-        "telif_4": "<b>Disclaimer:</b> The Developer accepts no direct or indirect legal, administrative, or criminal liability arising from the use of the application. By accessing the application, the user is deemed to have accepted these terms."
+    "EN": {
+        "page_title": "📚 Deep Knowledge: Archive of Wisdom & Contemplation",
+        "page_subtitle": "A verified meeting point of wise sayings of Sufi masters, Islamic scholars, Holy Qur'an verses, and prophetic guidance.",
+        "search_label": "🔍 Search Content (Person, Saying, Verse, Hadith, or Source):",
+        "search_placeholder": "Type keyword to search...",
+        "select_person": "Select Scholar / Master:",
+        "all_option": "All",
+        "no_results": "No results found matching your criteria.",
+        "results_found": "**{}** entries found matching your criteria.",
+        "word_title": "📜 Wise Saying",
+        "verse_title": "📖 Divine Word (Qur'anic Verse)",
+        "hadith_title": "☀️ Prophetic Light (Hadith)",
+        "source_label": "Source",
+        "category_label": "Category",
+        "item_id": "Entry #",
+        "sidebar_title": "📌 System Assurance",
+        "info_note": "This archive is an academic and spiritual work that brings together the wise sayings of Islamic thought history and Sufi masters, verified with verses and hadiths.",
+        "legal_warning_title": "⚖️ Disclaimer & Legal Notice",
+        "legal_warning_body": "The Quranic verses, hadiths, and sayings of Islamic scholars and Sufi masters in this archive are compiled solely for guidance, contemplation, and academic research purposes. Content accuracy relies on referenced literature.",
+        "daily_guide_title": "🗓️ Daily Guide",
+        "daily_climate": "Climate of \"{}\".",
     },
-    "Norsk": {
-        "title": "📖 Risale-i Nur Veiledning for Råd, Prinsipper og Eksempler",
-        "subtitle": "Omfattende database for åndelig utdanning og refleksjon (1-200 Full Versjon)",
-        "search_label": "🔍 Søk og Filtrering",
-        "search_input": "Søk etter emne, råd eller nøkkelord:",
-        "category_label": "Filtrer etter kategori:",
-        "all_categories": "Alle",
-        "displayed_count": "📌 Viste oppføringer",
-        "col_konu": "Emne",
-        "col_ogut": "Råd",
-        "col_ornek": "Eksempel og Praksis",
-        "col_kaynak": "Verk og Kilde",
-        "warning_text": (
-            "⚠️ **Juridisk merknad og bruksvilkår:**\n"
-            "Denne programvaren og databasen er utarbeidet utelukkende for akademiske, forsknings- "
-            "og åndelige utviklingsformål. **Kopiering, reproduksjon eller kommersiell bruk av "
-            "innholdet er strengt forbudt.** De medfølgende sammendragene, rådene og prinsippene "
-            "er kun til veiledning og har ingen offisiell eller juridisk bindende kraft. "
-            "De er utelukkende ment for personlig åndelig berikelse."
-        ),
-        "telif_title": "📌 OPPHAVSRETT OG BRUKSVILKÅR",
-        "telif_1": "<b>Formål:</b> Denne applikasjonen er utarbeidet utelukkende for <b>åndelig vekst, utdanning og refleksjon</b>.",
-        "telif_2": "<b>Forbud mot kommersiell bruk:</b> Applikasjonens innhold kan ikke brukes kommersielt, selges eller gjøres om til et inntektsgenererende verktøy på noen måte.",
-        "telif_3": "<b>Kopieringsforbud:</b> Teksten og kodestrukturen i applikasjonen kan ikke kopieres, reproduseres eller brukes uten tillatelse til andre formål enn det tiltenkte.",
-        "telif_4": "<b>Ansvarsfraskrivelse:</b> Utvikleren aksepterer intet direkte eller indirekte juridisk, administrativt eller strafferettslig ansvar som følge av bruk av applikasjonen. Ved å få tilgang til applikasjonen anses brukeren for å ha godtatt disse vilkårene."
-    }
 }
 
-t = ui_text[dil_secimi]
 
-# --- BAŞLIKLAR ---
-st.markdown(f"<div style='font-size: 2.2rem; color: #1f77b4; font-weight: 800; text-align: center;'>{t['title']}</div>", unsafe_allow_html=True)
-st.markdown(f"<div style='font-size: 1.1rem; color: #555; text-align: center; margin-bottom: 20px;'>{t['subtitle']}</div>", unsafe_allow_html=True)
+def t(key):
+    return translations[lang].get(key, key)
 
-# --- YASAL UYARI ---
-st.warning(t["warning_text"])
 
-# --- 1-200 TAM VE ÜÇ DİLLİ VERİ SETİ ---
-veriler = [
-    {
-        "ID": 1,
-        "Konu": {"tr": "Yalnız Rıza-i İlahi Esası", "en": "Principle of Seeking Only Allah's Pleasure", "no": "Prinsippet om bare å søke Allahs velbehag"},
-        "Öğüt": {"tr": "Amellerde yalnız ve yalnız Rıza-i İlahi esas alınmalı; insanların takdiri ve makam hırsı terk edilmelidir.", "en": "Only and exclusively Allah's pleasure should be the basis in actions; the praise of people and ambition for status must be abandoned.", "no": "Bare og utelukkende Allahs velbehag bør legges til grunn for handlinger; menneskers ros og ambisjon om status må forlates."},
-        "Örnek ve Tatbikat": {"tr": "Hizmet-i imaniyede 'halktan ecir istememek' düsturu gereğince karşılığı sadece Allah'tan beklemek.", "en": "Expecting rewards solely from Allah, following the principle of 'not asking compensation from the public' in faith service.", "no": "Å forvente belønning utelukkende fra Allah, i tråd med prinsippet om 'ikke å be om kompensasjon fra allmennheten' i troens tjeneste."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz - İhlas Risalesi (Üçüncü Düstur)", "en": "The Twenty-Second Word - Treatise on Sincerity (Third Principle)", "no": "Det tjueandre ordet - Avhandling om oppriktighet (Tredje prinsipp)"},
-    },
-    {
-        "ID": 2,
-        "Konu": {"tr": "Şöhret Arzusundan Sakınma", "en": "Avoiding the Desire for Fame", "no": "Unngå begjær etter berømmelse"},
-        "Öğüt": {"tr": "Amellere riya karıştırmamak, en küçük bir şöhret arzusundan bile şiddetle sakınmak gerekir.", "en": "One must not mix hypocrisy into deeds and must strictly avoid even the smallest desire for fame.", "no": "Man må ikke blande hykleri inn i gjerninger og må strengt unngå selv det minste ønske om berømmelse."},
-        "Örnek ve Tatbikat": {"tr": "Manevi makam sahibi olmayı veya nam kazanmayı arzu etmenin tehlikesini idrak etmek.", "en": "Realizing the danger of desiring spiritual status or gaining a reputation.", "no": "Å erkjenne faren ved å ønske seg en åndelig posisjon eller oppnå et rykte."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz - İhlas Risalesi (Birinci Düstur)", "en": "The Twenty-Second Word - Treatise on Sincerity (First Principle)", "no": "Det tjueandre ordet - Avhandling om oppriktighet (Første prinsipp)"},
-    },
-    {
-        "ID": 3,
-        "Konu": {"tr": "Kardeş Meziyetleriyle Onur Duyma", "en": "Honoring Brothers' Virtues", "no": "Å hedre brødrenes dyder"},
-        "Öğüt": {"tr": "Kardeşlerin meziyetleriyle onur duymalı; onların şöhretini kendi makamın bilip kıskanmamalıdır.", "en": "One should honor brothers' virtues; knowing their fame as one's own status without jealousy.", "no": "Man bør hedre brødrenes dyder; og se på deres berømmelse som ens egen status uten sjalusi."},
-        "Örnek ve Tatbikat": {"tr": "Bir medrese arkadaşının başarısını kendi başarısı gibi görerek ruhen sevinmesi.", "en": "Spiritually rejoicing by seeing a companion's success as one's own.", "no": "Å glede seg åndelig ved å se en medstudenters suksess som sin egen."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz - İhlas Risalesi (İkinci Düstur)", "en": "The Twenty-Second Word - Treatise on Sincerity (Second Principle)", "no": "Det tjueandre ordet - Avhandling om oppriktighet (Andre prinsipp)"},
-    },
-    {
-        "ID": 4,
-        "Konu": {"tr": "Kuvve-i Maneviye ve Azınlık", "en": "Spiritual Power and Minority", "no": "Åndelig kraft og mindretall"},
-        "Öğüt": {"tr": "Haklı davada hakiki ihlasa sahip üç kişi, ihlassız bin kişiye galip gelebilir.", "en": "Three people with true sincerity in a just cause can overcome a thousand people without sincerity.", "no": "Tre personer med ekte oppriktighet i en rettferdig sak kan overvinne tusen personer uten oppriktighet."},
-        "Örnek ve Tatbikat": {"tr": "Kuvvetin çoklukta değil, kuvve-i maneviye ve ihlasta olduğunun idrakiyle sayı azlığına tasalanmamak.", "en": "Not worrying about small numbers, realizing that strength lies in spiritual power and sincerity, not multitude.", "no": "Ikke bekymre seg over lite antall, ettersom man innser at styrke ligger i åndelig kraft og oppriktighet, ikke i mengde."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz - İhlas Risalesi (Dördüncü Düstur)", "en": "The Twenty-Second Word - Treatise on Sincerity (Fourth Principle)", "no": "Det tjueandre ordet - Avhandling om oppriktighet (Fjerde prinsipp)"},
-    },
-    {
-        "ID": 5,
-        "Konu": {"tr": "Uhuvvet ve Kusur Affı", "en": "Brotherhood and Forgiving Faults", "no": "Brorskap og tilgivelse av feil"},
-        "Öğüt": {"tr": "Mümin müminin kardeşidir; kardeşin kusurlarını affetmek, örtmek ve husumeti terk etmek esastır.", "en": "A believer is a brother to a believer; forgiving and concealing faults and abandoning hostility is essential.", "no": "En troende er en bror for en troende; det å tilgi og skjule feil og forlate fiendskap er essensielt."},
-        "Örnek ve Tatbikat": {"tr": "Hizmet arkadaşının hatasını gördüğünde hemen silmek yerine şefkatle ıslahına çalışmak.", "en": "Working with compassion to correct a service companion's mistake rather than cutting ties immediately.", "no": "Å arbeide med medfølelse for å rette opp en tjenestekamerats feil i stedet for å kutte båndene umiddelbart."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a - Uhuvvet Risalesi (Düstur-u Evvel)", "en": "The Twenty-Second Flash - Treatise on Brotherhood (First Principle)", "no": "Det tjueandre glimt - Avhandling om brorskap (Første prinsipp)"},
-    },
-    {
-        "ID": 6,
-        "Konu": {"tr": "İman Bağının Gereği Olan Muhabbet", "en": "Love Required by the Bond of Faith", "no": "Kjærlighet påkrevd av troens bånd"},
-        "Öğüt": {"tr": "İman, müminler arasında hakiki muhabbeti gerektirir; adavete ve düşmanlığa tevessül edilmemelidir.", "en": "Faith requires true love among believers; resort should not be made to hostility and enmity.", "no": "Tro krever sann kjærlighet blant troende; man bør ikke ty til fiendskap og uvennskap."},
-        "Örnek ve Tatbikat": {"tr": "İman bağı vasıtasıyla, aradaki binlerce zati ayrılığa rağmen müminlerin birbirini kucaklaması.", "en": "Believers embracing each other through the bond of faith despite thousands of personal differences.", "no": "Troende omfavner hverandre gjennom troens bånd på tvers av tusenvis av personlige forskjeller."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a - Uhuvvet Risalesi (İkinci Düstur)", "en": "The Twenty-Second Flash - Treatise on Brotherhood (Second Principle)", "no": "Det tjueandre glimt - Avhandling om brorskap (Andre prinsipp)"},
-    },
-    {
-        "ID": 7,
-        "Konu": {"tr": "Müspet Hareket Prensibi", "en": "Principle of Positive Action", "no": "Prinsippet om positiv handling"},
-        "Öğüt": {"tr": "Hak ve hakikat davası asla anarşi, kargaşa veya şiddetle değil; yalnızca müsbet hareket ve ahlakla yürütülür.", "en": "The cause of right and truth is never pursued through anarchy, chaos, or violence, but only through positive action and morality.", "no": "Saken om rett og sannhet forfølges aldri gjennom anarki, kaos eller vold, men utelukkende gjennom positiv handling og moral."},
-        "Örnek ve Tatbikat": {"tr": "Asayişi muhafaza etmek adına zulme uğranılsa bile sabredip sadece imana ve Kur'an'a hizmet etmek.", "en": "Serving only faith and the Quran with patience, even when subjected to oppression, to preserve public order.", "no": "Å tjene bare troen og Koranen med tålmodighet, selv når man utsettes for undertrykkelse, for å bevare offentlig orden."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat - Yirmi İkinci Mektup", "en": "Letters - The Twenty-Second Letter", "no": "Brev - Det tjueandre brevet"},
-    },
-    {
-        "ID": 8,
-        "Konu": {"tr": "Toplumsal Asayişi Koruma", "en": "Protecting Social Public Order", "no": "Beskyttelse av den sosiale offentlige orden"},
-        "Öğüt": {"tr": "Mümin, içinde bulunduğu toplumun asayişini, huzurunu ve emniyetini korumakla mükelleftir.", "en": "A believer is obliged to protect the public order, peace, and security of the society in which they live.", "no": "En troende er forpliktet til å beskytte den offentlige orden, freden og sikkerheten i samfunnet han lever i."},
-        "Örnek ve Tatbikat": {"tr": "Kamu düzenini sarsacak hareketlerden kaçınarak, toplumun huzuruna menfi değil müspet katkı sunmak.", "en": "Avoiding actions that disrupt public order and contributing positively to societal peace.", "no": "Unngå handlinger som forstyrrer offentlig orden og bidra positivt til samfunnets fred."},
-        "Eser ve Detaylı Kaynak": {"tr": "Emirdağ Lahikası - Asayiş ve Emniyet Düsturları", "en": "Emirdağ Lahika - Principles of Public Order and Security", "no": "Emirdağ Lahika - Prinsipper for offentlig orden og sikkerhet"},
-    },
-    {
-        "ID": 9,
-        "Konu": {"tr": "Namazın Hakikati ve Ehemmiyeti", "en": "Reality and Importance of Prayer (Namaz)", "no": "Virkeligheten og betydningen av bønnen (Namaz)"},
-        "Öğüt": {"tr": "Namaz, dinin direğidir; ubudiyetin en parlak ve kapsamlı unvanıdır.", "en": "Prayer is the pillar of religion; it is the brightest and most comprehensive title of worship.", "no": "Bønnen er religionens søyle; den er den mest strålende og omfattende tittelen på tilbedelse."},
-        "Örnek ve Tatbikat": {"tr": "Günde beş vakit namazla, kainatın genel tesbihatına lisan-i hal ve kal ile iştirak etmek.", "en": "Participating in the general glorification of the universe with tongue and state through five daily prayers.", "no": "Å delta i universets generelle lovprisning med tunge og tilstand gjennom fem daglige bønner."},
-        "Eser ve Detaylı Kaynak": {"tr": "Dördüncü Söz ve Dokuzuncu Söz", "en": "The Fourth Word and The Ninth Word", "no": "Det fjerde ordet og Det niende ordet"},
-    },
-    {
-        "ID": 10,
-        "Konu": {"tr": "Namaz Vakitlerinin Hikmetleri", "en": "Wisdom of Prayer Times", "no": "Visdommen bak bønnestundene"},
-        "Öğüt": {"tr": "Namazları vaktinde kılmak, erken saatlerde eda etmek ruhun rahatlığı ve dünya işlerinin bereketi için şarttır.", "en": "Performing prayers on time and early is essential for spiritual peace and the blessing of worldly affairs.", "no": "Å utføre bønnene i tide og tidlig er avgjørende for sjelelig ro og velsignelsen i verdslige anliggender."},
-        "Örnek ve Tatbikat": {"tr": "Sabah namazı ile güne başlayıp bütün günün rızık ve manevi sıkıntılarını erkenden halletmiş gibi ferah duymak.", "en": "Starting the day with morning prayer and feeling relieved as if early solving all daily sustenance and spiritual worries.", "no": "Å starte dagen med morgenbønnen og føle seg lettet som om man tidlig har løst alle daglige bekymringer og åndelige problemer."},
-        "Eser ve Detaylı Kaynak": {"tr": "Dokuzuncu Söz - Namazın Vakitlerinin Hikmetleri", "en": "The Ninth Word - Wisdoms of Prayer Times", "no": "Det niende ordet - Visdommen bak bønnestundene"},
-    }
-    {
-        "ID": 11,
-        "Konu": {"tr": "Şükrün Nimeti Artırması", "en": "Gratitude Increasing Blessings", "no": "Takknemlighet øker velsignelser"},
-        "Öğüt": {"tr": "Verilen her nimete hem lisanen hem de hal ile şükredilmelidir; şükür nimeti artırır ve daimi kılar.", "en": "Gratitude must be shown for every blessing both verbally and practically; gratitude increases blessings and makes them permanent.", "no": "Takknemlighet må vises for enhver velsignelse både verbalt og praktisk; takknemlighet øker velsignelsen og gjør den permanent."},
-        "Örnek ve Tatbikat": {"tr": "Yenilen bir lokma ekmekten sonra 'Elhamdülillah' diyerek rızık verenin o nimetteki ikramını idrak etmek.", "en": "Realizing the Provider's grace in a morsel of bread by saying 'Alhamdulillah' after eating.", "no": "Å erkjenne Forsørgerens nåde i en matbit ved å si 'Alhamdulillah' etter å ha spist."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Sekizinci Söz ve Otuz İkinci Söz", "en": "The Twenty-Eighth Word and The Thirty-Second Word", "no": "Det tjueåttende ordet og Det trettiførste ordet"},
-    },
-    {
-        "ID": 12,
-        "Konu": {"tr": "Manevi ve Maddi Hallerde Şükür Ölçüsü", "en": "Measure of Gratitude in Spiritual and Material States", "no": "Målestokk for takknemlighet i åndelige og materielle tilstander"},
-        "Öğüt": {"tr": "Dünyevi imkanlarda üstün olanlara bakıp sızlanmak yerine, alt hallerdeki hastalara ve fakirlere bakılarak şükredilmelidir.", "en": "Instead of complaining by looking at those superior in worldly means, one should look at sick and poor people in lower conditions and give thanks.", "no": "I stedet for å klage ved å se på dem som er bedre stilt materielt, bør man se på syke og fattige mennesker i lavere kår og takke."},
-        "Örnek ve Tatbikat": {"tr": "Maddi sıkıntıda iken bacağından sakat bir hastayı görünce kişinin kendi sağlığına hamdetmesi.", "en": "A person praising God for their own health upon seeing a disabled patient while in financial distress.", "no": "En person som priser Gud for sin egen helse når han ser en funksjonshemmet pasient mens han selv er i økonomiske vanskeligheter."},
-        "Eser ve Detaylı Kaynak": {"tr": "Lem'alar - Yirminci Lem'a (İhlas ve Şükür Hakikatleri)", "en": "The Flashes - Twentieth Flash (Truths of Sincerity and Gratitude)", "no": "Glansene - Det tjuende glimt (Sannheter om oppriktighet og takknemlighet)"},
-    },
-    {
-        "ID": 13,
-        "Konu": {"tr": "Sabrın Üç Mertebesi", "en": "Three Degrees of Patience", "no": "Tålmodighetens tre grader"},
-        "Öğüt": {"tr": "Sabır üç kısımdır: Musibetlere karşı sabır, ibadette sebat ve günahlardan kaçınma sabrı.", "en": "Patience is in three parts: patience against calamities, steadfastness in worship, and patience in avoiding sins.", "no": "Tålmodighet har tre deler: tålmodighet mot ulykker, standhaftighet i tilbedelse og tålmodighet i å unngå synder."},
-        "Örnek ve Tatbikat": {"tr": "Günahların hırs ve cazibesi karşısında nefsi tutarak harama girmemek ve bu hususta sebat göstermek.", "en": "Holding back the soul against the greed and attraction of sins, avoiding the unlawful, and showing perseverance.", "no": "Å holde sjelen tilbake fra syndenes grådighet og tiltrekning, unngå det ulovlige og vise utholdenhet i dette."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat - Yirmi Birinci Mektup (Sabır Risalesi)", "en": "Letters - The Twenty-First Letter (Treatise on Patience)", "no": "Brev - Det tjueførste brevet (Avhandling om tålmodighet)"},
-    },
-    {
-        "ID": 14,
-        "Konu": {"tr": "Musibetler Karşısında Metanet", "en": "Fortitude Against Calamities", "no": "Standhaftighet mot ulykker"},
-        "Öğüt": {"tr": "Başa gelen musibetler karşısında fevri davranmamak, şikayetçi olmamak ve hal diliyle sabretmek gerekir.", "en": "One must not act impulsively against incoming calamities, should not complain, and must be patient with the language of state.", "no": "Man må ikke handle impulsivt mot innkomne ulykker, bør ikke klage, og må være tålmodig med sin indre tilstand."},
-        "Örnek ve Tatbikat": {"tr": "Hastalanan veya maddi kayba uğrayan birinin isyan etmek yerine tefekkürle sükuneti seçmesi.", "en": "A sick or financially lost person choosing calm through reflection instead of rebelling.", "no": "En syk eller økonomisk lidende person som velger ro gjennom refleksjon i stedet for å gjøre opprør."},
-        "Eser ve Detaylı Kaynak": {"tr": "Lem'alar - İkinci Lem'a (Sabır ve Şükür Nasihatleri)", "en": "The Flashes - Second Flash (Advices on Patience and Gratitude)", "no": "Glansene - Det andre glimt (Råd om tålmodighet og takknemlighet)"},
-    },
-    {
-        "ID": 15,
-        "Konu": {"tr": "Yalanın Manevi Zehri", "en": "Spiritual Poison of Lying", "no": "Løgnens åndelige gift"},
-        "Öğüt": {"tr": "Yalan, imanın zıddı ve manevi bir zehirdir; maslahat kisvesi altında bile söylenmemelidir.", "en": "Lying is the opposite of faith and a spiritual poison; it should not be spoken even under the guise of public interest.", "no": "Løgn er troens motsatt og en åndelig gift; den bør ikke ytres selv underskjøvet offentlig interesse."},
-        "Örnek ve Tatbikat": {"tr": "Küçük bir menfaat veya korku sebebiyle gerçeği çarpıtarak hakikatle olan bağı koparmamak.", "en": "Not breaking the bond with truth by distorting reality due to minor benefits or fear.", "no": "Ikke bryte båndet til sannheten ved å fordreie virkelighet på grunn av små fordeler eller frykt."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat - Yirminci Mektup (Yalanın Zararları)", "en": "Letters - Twentieth Letter (Harms of Lying)", "no": "Brev - Det tjuende brevet (Løgnens skadevirkninger)"},
-    },
-    {
-        "ID": 16,
-        "Konu": {"tr": "Gıybetin Ağırlığı", "en": "Severity of Backbiting (Gıybet)", "no": "Alvorligheten av baksnakkelser (Gıybet)"},
-        "Öğüt": {"tr": "Gıybet, manevi bir ceset yemek gibidir; din kardeşinin etini yemekten farksız bir felakettir.", "en": "Backbiting is like eating a spiritual corpse; it is a disaster no different from eating a brother's flesh.", "no": "Baksnakkelser er som å spise et åndelig lik; det er en katastrofe som ikke skiller seg fra å spise sin trosbrors kjøtt."},
-        "Örnek ve Tatbikat": {"tr": "Mecliste bulunmayan birinin kusurlarını çekiştiren insanları uyararak o meclisten uzaklaşmak.", "en": "Warning people who gossip about an absent person's flaws and moving away from that gathering.", "no": "Advare personer som sladrer om en fraværende persons feil, og trekke seg bort fra den samlingen."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a - Gıybet Bahsi", "en": "The Twenty-Second Flash - Section on Backbiting", "no": "Det tjueandre glimt - Seksjon om baksnakkelser"},
-    },
-    {
-        "ID": 17,
-        "Konu": {"tr": "İktisat ve Bereket Sırrı", "en": "Secret of Economy and Blessing", "no": "Hemmeligheten bak økonomi og velsignelse"},
-        "Öğüt": {"tr": "İktisat, rızkın bereketini artırır ve insanı dilencilik zilletinden korur.", "en": "Economy increases the blessing of sustenance and protects man from the humiliation of begging.", "no": "Økonomi øker velsignelsen av livets opphold og beskytter mennesket mot tiggeriets fornedrelse."},
-        "Örnek ve Tatbikat": {"tr": "Evdeki gıda ve eşyaları israf etmeden, tam kararında ve kanaatkar bir biçimde kullanmak.", "en": "Using food and items at home without waste, in full moderation and contentment.", "no": "Å bruke mat og gjenstander i hjemmet uten sløsing, med full moderering og nøysomhet."},
-        "Eser ve Detaylı Kaynak": {"tr": "Ondokuzuncu Lem'a - İktisat Risalesi", "en": "The Nineteenth Flash - Treatise on Economy", "no": "Det nittende glimt - Avhandling om økonomi"},
-    },
-    {
-        "ID": 18,
-        "Konu": {"tr": "İsrafın Maddi ve Manevi Zararları", "en": "Material and Spiritual Harms of Waste", "no": "Materielle og åndelige skadevirkninger av sløsing"},
-        "Öğüt": {"tr": "İsraf hem maddi hem manevi bereketsizliğe yol açar; su ve ekmek gibi nimetler zayi edilmemelidir.", "en": "Waste leads to both material and spiritual lack of blessing; blessings like water and bread must not be squandered.", "no": "Sløsing fører til både materiell og åndelig mangel på velsignelse; velsignelser som vann og brød må ikke sløses bort."},
-        "Örnek ve Tatbikat": {"tr": "Yemek tabağında bırakılan artıkları çöpe atmak yerine tasarruf edip değerlendirmek.", "en": "Saving and utilizing food leftovers on the plate instead of throwing them in the trash.", "no": "Å ta vare på og utnytte matrester på tallerkenen i stedet for å kaste dem i søpla."},
-        "Eser ve Detaylı Kaynak": {"tr": "Ondokuzuncu Lem'a - Ekmek ve Su Örnekleri", "en": "The Nineteenth Flash - Examples of Bread and Water", "no": "Det nittende glimt - Eksempler på brød og vann"},
-    },
-    {
-        "ID": 19,
-        "Konu": {"tr": "Hırsın Mahrumiyet Getirmesi", "en": "Greed Bringing Deprivation", "no": "Grådighet bringer avsavr"},
-        "Öğüt": {"tr": "Hırs, mahrumiyete ve sefalete sebeptir; çalışmak başkadır, hırsla dünyaya tapmak başkadır.", "en": "Greed causes deprivation and misery; working is one thing, worshipping the world with ambition is another.", "no": "Grådighet forårsaker avsavr og elendighet; å arbeide er en ting, å tilbe verden med begjær er noe annet."},
-        "Örnek ve Tatbikat": {"tr": "Daha çok kazanmak için meşru dairenin dışına çıkıp hırsla her şeyi elde etmeye çalışmamak.", "en": "Not trying to obtain everything with greed outside the legitimate sphere just to earn more.", "no": "Ikke prøve å oppnå alt med grådighet utenfor den lovlige sfæren bare for å tjene mer."},
-        "Eser ve Detaylı Kaynak": {"tr": "Ondokuzuncu Lem'a - Hırsın Mahiyeti", "en": "The Nineteenth Flash - Nature of Greed", "no": "Det nittende glimt - Grådighetens natur"},
-    },
-    {
-        "ID": 20,
-        "Konu": {"tr": "Kanaat Edenin Aziz Olması", "en": "The Contented Person Being Honored", "no": "Den nøysomme personen blir æret"},
-        "Öğüt": {"tr": "Kanaat eden aziz olur, tükenmez bir hazineye kavuşur; hırslı olan ise daima muhtaç ve zelil kalır.", "en": "The contented person is honored and attains an inexhaustible treasure; the greedy one remains always needy and abased.", "no": "Den nøysomme blir æret og oppnår en utømmelig skatt; den grådige forblir alltid trengende og fornedret."},
-        "Örnek ve Tatbikat": {"tr": "Eldeki az rızka şükredip başkalarının servetine göz dikmeyerek ruh huzuru içinde yaşamak.", "en": "Living in spiritual peace by thanking for little sustenance at hand and not coveting others' wealth.", "no": "Å leve i åndelig fred ved å takke for det lille man har til livets opphold og ikke begjære andres rikdom."},
-        "Eser ve Detaylı Kaynak": {"tr": "Ondokuzuncu Lem'a - Kanaat Düsturları", "en": "The Nineteenth Flash - Principles of Contentment", "no": "Det nittende glimt - Prinsipper for nøysomhet"},
-    },
-    {
-        "ID": 21,
-        "Konu": {"tr": "Nefse Dalkavukluk Yapmama", "en": "Not Flattering the Soul (Nefs)", "no": "Ikke smigre sjelen (Nefs)"},
-        "Öğüt": {"tr": "Nefis daima fenalığı emreder; nefse karşı dalkavukluk yapılmamalı, muhasebe edilmelidir.", "en": "The soul always commands evil; it must not be flattered, but held accountable.", "no": "Sjelen befaler alltid det onde; den må ikke smigres, men stilles til ansvar."},
-        "Örnek ve Tatbikat": {"tr": "Nefsin kusurlarını görerek onu temize çıkarmamak ve hatalarla yüzleşmek.", "en": "Not acquitting the soul by seeing its flaws, and confronting mistakes.", "no": "Ikke frikjenne sjelen når man ser dens feil, men konfrontere feilene."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Dokuzuncu Mektup / Mesnevi-i Nuriye", "en": "The Twenty-Ninth Letter / Mesnevi-i Nuriye", "no": "Det tjueniende brevet / Mesnevi-i Nuriye"},
-    },
-    {
-        "ID": 22,
-        "Konu": {"tr": "Enaniyetin Terk Edilmesi", "en": "Abandoning Egoism (Enaniyet)", "no": "Å forlate egoisme (Enaniyet)"},
-        "Öğüt": {"tr": "Enaniyet ve gurur, manevi terakkinin en büyük engellerindendir; benlik terk edilmelidir.", "en": "Egoism and pride are among the greatest obstacles to spiritual progress; self-centeredness must be abandoned.", "no": "Egoisme og stolthet er blant de største hindrene for åndelig fremgang; selvsentrerthet må forlates."},
-        "Örnek ve Tatbikat": {"tr": "Başarıları şahsına mal etmek yerine, onları inayet-i ilahiye olarak telakki etmek.", "en": "Regarding successes as divine grace instead of attributing them to one's own personality.", "no": "Å betrakte suksesser som guddommelig nåde i stedet for å tilskrive dem ens egen personlighet."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz / Otuzuncu Söz", "en": "The Twenty-Second Word / The Thirtieth Word", "no": "Det tjueandre ordet / Det trettiende ordet"},
-    },
-    {
-        "ID": 23,
-        "Konu": {"tr": "İlim ve Makam Sahibinde Tevazu", "en": "Humility in One of Knowledge and Status", "no": "Ydmykhet hos den som har kunnskap og status"},
-        "Öğüt": {"tr": "İnsan ne kadar büyük makam veya ilme sahip olursa olsun, tevazudan ayrılmamalıdır.", "en": "No matter how great a status or knowledge a person possesses, they must not abandon humility.", "no": "Uansett hvor stor status eller kunnskap en person besitter, må de ikke forlate ydmykheten."},
-        "Örnek ve Tatbikat": {"tr": "Büyük bir kariyere sahipken sıradan insanlarla mütevazı bir şekilde iletişim kurmak.", "en": "Communicating modestly with ordinary people despite having a great career.", "no": "Å kommunisere ydmykt med vanlige mennesker til tross for en strålende karriere."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat Külliyatı", "en": "Collection of Letters", "no": "Brevsamlingen"},
-    },
-    {
-        "ID": 24,
-        "Konu": {"tr": "Haset Edenin Kendi Kendini Yakması", "en": "The Envious Person Burning Themselves", "no": "Den misunnelige brenner seg selv"},
-        "Öğüt": {"tr": "Haset, haset edeni yer bitirir; başkasının nimetine rıza göstermek esastır.", "en": "Envy consumes the envious person; accepting another's blessing is essential.", "no": "Misunnelse fortærer den misunnelige; å akseptere en annens velsignelse er essensielt."},
-        "Örnek ve Tatbikat": {"tr": "Komşunun veya mesai arkadaşının elde ettiği başarıya kalben sevinmek.", "en": "Rejoicing heartily at the success achieved by a neighbor or colleague.", "no": "Å glede seg oppriktig over suksessen til en nabo eller kollega."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a - Haset Bahsi", "en": "The Twenty-Second Flash - Section on Envy", "no": "Det tjueandre glimt - Seksjon om misunnelse"},
-    },
-    {
-        "ID": 25,
-        "Konu": {"tr": "Kibrin Azamet Sıfatına Müdahalesi", "en": "Arrogance Interfering with the Attribute of Grandeur", "no": "Arrogamsen griper inn i Guds storhet"},
-        "Öğüt": {"tr": "Kibir, azamet sıfatına müdahale demektir; kibirlenen insan manen alçalır.", "en": "Arrogance means interfering with the attribute of grandeur; an arrogant person spiritually descends.", "no": "Arroganse betyr å gripe inn i egenskapen av storhet; et arrogant menneske synker åndelig."},
-        "Örnek ve Tatbikat": {"tr": "Kendini diğer insanlardan üstün görme hissiyatını kalpten defetmek.", "en": "Banishing from the heart the feeling of seeing oneself superior to other people.", "no": "Å fordrive fra hjertet følelsen av å se seg selv som overlegen andre mennesker."},
-        "Eser ve Detaylı Kaynak": {"tr": "Küçük Sözler / Mesnevi-i Nuriye", "en": "The Lyrical Words / Mesnevi-i Nuriye", "no": "De små ordene / Mesnevi-i Nuriye"},
-    },
-    {
-        "ID": 26,
-        "Konu": {"tr": "İnsanların Kusurlarını Bağışlama", "en": "Forgiving People's Faults", "no": "Tilgivelse av menneskers feil"},
-        "Öğüt": {"tr": "İnsanların kusurlarını bağışlamak, kin ve intikam duygularını atmak en büyük erdemdir.", "en": "Forgiving people's faults and discarding feelings of grudge and revenge is the greatest virtue.", "no": "Å tilgi menneskers feil og kaste fra seg følelser av nag og hevn er den største dygd."},
-        "Örnek ve Tatbikat": {"tr": "Kendisine haksızlık eden bir kimsenin hatasını affederek büyüklük göstermek.", "en": "Showing greatness by forgiving the mistake of someone who wronged oneself.", "no": "Å vise storhet ved å tilgi feilen til en som har gjort en urett."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat - Aff-ı İlahi Ölçüleri", "en": "Letters - Measures of Divine Forgiveness", "no": "Brev - Målestokker for guddommelig tilgivelse"},
-    },
-    {
-        "ID": 27,
-        "Konu": {"tr": "Zalimlere Taraftar Olmama", "en": "Not Partisanship with Tyrants", "no": "Ikke være partisk med tyranner"},
-        "Öğüt": {"tr": "Kimseye zerre miktar haksızlık yapılmamalıdır; zalimlere taraftar olmak da zulümdür.", "en": "No injustice should be done to anyone even to the smallest amount; supporting tyrants is also tyranny.", "no": "Ingen urett bør gjøres mot noen, ikke en gang i minste grad; å støtte tyranner er også tyranni."},
-        "Örnek ve Tatbikat": {"tr": "Haklıyı savunmak, haksız kim akraba olursa olsun hakikatin yanında durmak.", "en": "Defending the rightful and standing by the truth no matter who the unjust relative is.", "no": "Å forsvare den rettmessige og stå ved sannheten uansett hvem den urettferdige slektningen er."},
-        "Eser ve Detaylı Kaynak": {"tr": "Divan-ı Harb-i Örfî / İşaratü'l-İ'caz", "en": "Divan-ı Harb-i Örfî / Signs of Miraculousness", "no": "Divan-ı Harb-i Örfî / Tegn på mirakuløsitet"},
-    },
-    {
-        "ID": 28,
-        "Konu": {"tr": "Maddi ve Manevi Emanetlere Riayet", "en": "Compliance with Material and Spiritual Trusts", "no": "Overholdelse av materielle og åndelige tillitsverv"},
-        "Öğüt": {"tr": "Üzerinizde bulunan maddi veya manevi her türlü emanete (görev, sır, mal) riayet edilmelidir.", "en": "Compliance must be maintained with all kinds of material or spiritual trusts (duty, secret, property) upon you.", "no": "Man må overholde alle typer materielle eller åndelige tillitsverv (plikt, hemmelighet, eiendom) som er betrodd en."},
-        "Örnek ve Tatbikat": {"tr": "Bir arkadaşın sırrını veya emanet ettiği eşyayı en güvenli şekilde korumak.", "en": "Protecting a friend's secret or entrusted item in the most secure way.", "no": "Å beskytte en venns hemmelighet eller betrodde eiendel på en sikrest mulig måte."},
-        "Eser ve Detaylı Kaynak": {"tr": "Otuz İkinci Söz - Emanet Bahsi", "en": "The Thirty-Second Word - Section on Trust", "no": "Det trettienne ordet - Seksjon om tillitsverv (Emanet)"},
-    },
-    {
-        "ID": 29,
-        "Konu": {"tr": "Ahde Vefa Gösterme", "en": "Showing Loyalty to Covenants", "no": "Å vise lojalitet mot avtaler"},
-        "Öğüt": {"tr": "Verilen sözler tutulmalı, ahitlere ve antlaşmalara sadık kalınmalıdır.", "en": "Given words must be kept, and loyalty must be maintained to covenants and agreements.", "no": "Gitte ord må holdes, og lojalitet må opprettholdes overfor avtaler og pakter."},
-        "Örnek ve Tatbikat": {"tr": "Zor duruma düşülse dahi verilen sözün gereğini yerine getirmek.", "en": "Fulfilling the requirement of a given word even if falling into a difficult situation.", "no": "Å oppfylle kravene i et gitt løfte selv om man havner i en vanskelig situasjon."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat - Ahitler", "en": "Letters - Covenants", "no": "Brev - Pakter"},
-    },
-    {
-        "ID": 30,
-        "Konu": {"tr": "Dilin Yalandan Arındırılması", "en": "Purifying the Tongue from Lying", "no": "Renselse av tungen fra løgn"},
-        "Öğüt": {"tr": "Dil yalan ve dedikodudan arındırılmalı; sadece hak ve faydalı kelamlar sarf edilmelidir.", "en": "The tongue must be purified from lies and gossip; only true and beneficial words should be uttered.", "no": "Tungen må renses for løgn og sladrep rat; bare sanne og nyttige ord bør ytres."},
-        "Örnek ve Tatbikat": {"tr": "Konuşmadan önce kelimelerin hayırlı olup olmadığını tartmak.", "en": "Weighing whether words are beneficial before speaking.", "no": "Å veie om ordene er gagnlige før man snakker."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz / Lem'alar", "en": "The Twenty-Second Word / The Flashes", "no": "Det tjueandre ordet / Glansene"},
-    },
-    {
-        "ID": 31,
-        "Konu": {"tr": "İlmin Rıza-i İlahi İçin Olması", "en": "Knowledge Being for Allah's Pleasure", "no": "Kunnskap skal være for Allahs velbehag"},
-        "Öğüt": {"tr": "İlim, Allah rızası ve insanlığa hizmet için öğrenilmeli; kibir vesilesi yapılmamalıdır.", "en": "Knowledge should be learned for Allah's pleasure and service to humanity; it must not be made an occasion for arrogance.", "no": "Kunnskap bør læres for Allahs velbehag og tjeneste for menneskeheten; den må ikke gjøres til en anledning for arroganse."},
-        "Örnek ve Tatbikat": {"tr": "Öğrenilen bilgileri başkalarına menfaatsiz bir şekilde aktarmak.", "en": "Transferring acquired knowledge to others without self-interest.", "no": "Å overføre ervervet kunnskap til andre uten egennytte."},
-        "Eser ve Detaylı Kaynak": {"tr": "İşaratü'l-İ'caz / Mektubat", "en": "Signs of Miraculousness / Letters", "no": "İşaratü'l-İ'caz / Brev"},
-    },
-    {
-        "ID": 32,
-        "Konu": {"tr": "İlim ile Ameli Birliktede Tutma", "en": "Keeping Knowledge and Practice Together", "no": "Å holde kunnskap og praksis sammen"},
-        "Öğüt": {"tr": "Bilinen ilimle amel edilmeli, ilim ile amel arasındaki bağ koparılmamalıdır.", "en": "One must act with known knowledge; the bond between knowledge and practice must not be severed.", "no": "Man må handle i samsvar med kjent kunnskap; båndet mellom kunnskap og praksis må ikke brytes."},
-        "Örnek ve Tatbikat": {"tr": "Doğru olduğu bilinen bir dini veya ahlaki kuralı bizzat yaşantısında tatbik etmek.", "en": "Applying personally in life a religious or moral rule known to be true.", "no": "Å anvende personlig i livet en religiøs eller moralsk regel man vet er sann."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mesnevi-i Nuriye", "en": "Mesnevi-i Nuriye", "no": "Mesnevi-i Nuriye"},
-    },
-    {
-        "ID": 33,
-        "Konu": {"tr": "Kainat Kitabını Tefekkür", "en": "Reflecting on the Book of the Universe", "no": "Refleksjon over universets bok"},
-        "Öğüt": {"tr": "Kainattaki eserlere ibret nazarıyla bakıp Cenab-ı Hakk’ın sanatını tefekkür etmek gerekir.", "en": "It is necessary to look at works in the universe with a gaze of admonition and reflect on the art of Almighty God.", "no": "Det er nødvendig å betrakte verkene i universet med et blikk til lærdom og reflektere over den Allmektige Guds kunst."},
-        "Örnek ve Tatbikat": {"tr": "Doğada bir çiçeğin yaratılışındaki inceliği inceleyerek Allah'ın kudretini düşünmek.", "en": "Pondering Allah's power by examining the intricacy in the creation of a flower in nature.", "no": "Å gruble over Allahs makt ved å undersøke finurligheten i skapelsen av en blomst i naturen."},
-        "Eser ve Detaylı Kaynak": {"tr": "Otuz Üçüncü Söz (Pencereler Risalesi)", "en": "The Thirty-Third Word (Treatise on Windows)", "no": "Det trettitredje ordet (Avhandling om vinduer)"},
-    },
-   {
-        "ID": 34,
-        "Konu": {"tr": "Kabir ve Ahiret Alemi", "en": "The Realm of the Grave and the Hereafter", "no": "Gravens rike og det hinsidige"},
-        "Öğüt": {"tr": "Ölüm bir yok oluş değil, ebedi bir aleme açılan kapıdır.", "en": "Death is not annihilation, but a door opening to an eternal realm.", "no": "Døden er ikke tilintetgjørelse, men en dør som åpner seg mot en evig verden."},
-        "Örnek ve Tatbikat": {"tr": "Kabir ziyaretlerinde ölümün hakikatini hatırlayıp ahirete hazırlanmak.", "en": "Preparing for the hereafter by remembering the reality of death during grave visits.", "no": "Å forberede seg på det hinsidige ved å huske dødens virkelighet under gravbesøk."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirminci Söz / Yirmi Dördüncü Söz", "en": "The Twentieth Word / The Twenty-Fourth Word", "no": "Det tyvende ordet / Det tjuefjerde ordet"},
-    },
-    {
-        "ID": 35,
-        "Konu": {"tr": "Dünya Misafirhanesi", "en": "The World as a Guesthouse", "no": "Verden som et gjestehus"},
-        "Öğüt": {"tr": "Dünya hayatı geçici bir misafirhane, ahiret ise esas vatan ve mahsul yeridir.", "en": "Worldly life is a temporary guesthouse, while the hereafter is the real homeland and place of harvest.", "no": "Verdslig liv er et midlertidig gjestehus, mens det hinsidige er det virkelige hjemlandet og høstingsstedet."},
-        "Örnek ve Tatbikat": {"tr": "Dünya malına kalben bağlanmayıp geçici bir misafir gibi hareket etmek.", "en": "Acting like a temporary guest without attaching the heart to worldly goods.", "no": "Å handle som en midlertidig gjest uten å binde hjertet til verdslige goder."},
-        "Eser ve Detaylı Kaynak": {"tr": "Otuz İkinci Söz", "en": "The Thirty-Second Word", "no": "Det trettienne ordet"},
-    },
-  {
-        "ID": 36,
-        "Konu": {"tr": "Gençlik Sermayesini Koruma", "en": "Preserving the Capital of Youth", "no": "Å bevare ungdommens kapital"},
-        "Öğüt": {"tr": "Gençlik ömrü kıymetlidir; heva ve heves uğruna israf edilmeyip ibadetle değerlendirilmelidir.", "en": "The period of youth is precious; it should not be wasted on whims and desires, but evaluated with worship.", "no": "Ungdomstiden er dyrebar; den bør ikke sløses bort på lyster og begjær, men verdsettes med tilbedelse."},
-        "Örnek ve Tatbikat": {"tr": "Gençlik enerjisini topluma ve imani hizmetlere kanalize etmek.", "en": "Channeling youth energy to society and services of faith.", "no": "Å kanalisere ungdomsenergi til samfunnet og troens tjenester."},
-        "Eser ve Detaylı Kaynak": {"tr": "Gençlik Rehberi (Şualar)", "en": "Guide for Youth (The Rays)", "no": "Ungdommens veiledning (Strålene)"},
-    },
-    {
-        "ID": 37,
-        "Konu": {"tr": "İhtiyarların Haklarına Riayet", "en": "Observing the Rights of the Elderly", "no": "Respektere de eldre menneskers rettigheter"},
-        "Öğüt": {"tr": "İhtiyarlara hürmet edilmeli, onların tecrübelerine ve haklarına riayet olunmalıdır.", "en": "The elderly must be respected, and their experiences and rights must be observed.", "no": "De eldre må bli vist respekt, og deres erfaringer og rettigheter må overholdes."},
-        "Örnek ve Tatbikat": {"tr": "Yaşlı bir kimseye toplu taşımada yer vermek veya işinde yardımcı olmak.", "en": "Giving a seat to an elderly person in public transport or helping them with their work.", "no": "Å gi plass til en eldre person på kollektivtransport eller hjelpe dem med deres arbeid."},
-        "Eser ve Detaylı Kaynak": {"tr": "Lem'alar (Yirmi Altıncı Lem'a - İhtiyarlar Risalesi)", "en": "The Flashes (Twenty-Sixth Flash - Treatise on the Elderly)", "no": "Glansene (Det tjuesjette glimt - Avhandling om de eldre)"},
-    },
-    {
-        "ID": 38,
-        "Konu": {"tr": "Ebeveyne Şefkat ve Saygı", "en": "Compassion and Respect for Parents", "no": "Medfølelse og respekt for foreldre"},
-        "Öğüt": {"tr": "Anne ve babaya 'Öf' bile denilmemeli; onlara karşı son derece şefkatli ve saygılı olunmalıdır.", "en": "Not even 'Uff' should be said to parents; one must be extremely compassionate and respectful toward them.", "no": "Man skal ikke en gang si 'uff' til foreldre; man må være ekstremt medfølende og respektfull mot dem."},
-        "Örnek ve Tatbikat": {"tr": "Yaşlı ebeveynin her türlü ihtiyacını güler yüzle karşılamak.", "en": "Meeting all the needs of elderly parents with a smiling face.", "no": "Å dekke alle behovene til aldrende foreldre med et smil om munnen."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat (Dokuzuncu Mektup)", "en": "Letters (The Ninth Letter)", "no": "Brev (Det niende brevet)"},
-    },
-    {
-        "ID": 39,
-        "Konu": {"tr": "Akrabalık Bağlarını Gözetme", "en": "Observing Ties of Kinship", "no": "Å opprettholde familiebånd"},
-        "Öğüt": {"tr": "Akrabalarla bağlar koparılmamalı, sevinçte ve kederde yardımlaşılmalıdır.", "en": "Ties with relatives must not be severed; mutual assistance should be maintained in joy and sorrow.", "no": "Båndene til slektninger må ikke brytes; gjensidig hjelp bør opprettholdes i glede og sorg."},
-        "Örnek ve Tatbikat": {"tr": "Uzakta olan akrabaları arayıp hal ve hatırlarını sormak.", "en": "Calling distant relatives to ask about their well-being.", "no": "Å ringe fjerne slektninger for å spørre om hvordan det går med dem."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat Külliyatı", "en": "Collection of Letters", "no": "Brevsamlingen"},
-    },
-    {
-        "ID": 40,
-        "Konu": {"tr": "Komşuyu Rahatsız Etmeme", "en": "Not Disturbing the Neighbor", "no": "Ikke forstyrre naboen"},
-        "Öğüt": {"tr": "Komşulara maddi ve manevi zarar verilmemeli, komşunun hakkı gözetilmelidir.", "en": "No material or spiritual harm should be done to neighbors, and their rights must be observed.", "no": "Ingen materiell eller åndelig skade bør påføres naboer, og naborettighetene må respekteres."},
-        "Örnek ve Tatbikat": {"tr": "Evde yapılan yemekten komşuya ikram etmek veya gürültü yapmamak.", "en": "Treating the neighbor to food cooked at home or avoiding making noise.", "no": "Å dele mat laget hjemme med naboen eller unngå å lage støy."},
-        "Eser ve Detaylı Kaynak": {"tr": "Lem'alar Külliyatı", "en": "Collection of the Flashes", "no": "Glansenes samling"},
-    },
-    {
-        "ID": 41,
-        "Konu": {"tr": "Yetim ve Yoksul Hakları", "en": "Rights of Orphans and the Poor", "no": "Rettighetene til foreldreløse og fattige"},
-        "Öğüt": {"tr": "Topluluktaki yetim, yoksul ve kimsesizlere kol kanat germek dinin ve insanlığın emridir.", "en": "Protecting orphans, the poor, and the helpless in society is the command of religion and humanity.", "no": "Å beskytte foreldreløse, fattige og hjelpeløse i samfunnet er en befaling fra religion og menneskelighet."},
-        "Örnek ve Tatbikat": {"tr": "İhtiyaç sahibi bir yetimin eğitim masraflarına destek olmak.", "en": "Supporting the educational expenses of a needy orphan.", "no": "Å støtte utdanningsutgiftene til en trengende foreldreløs."},
-        "Eser ve Detaylı Kaynak": {"tr": "Sözler / Mektubat", "en": "The Words / Letters", "no": "Ordene / Brev"},
-    },
-    {
-        "ID": 42,
-        "Konu": {"tr": "Helal Kazanç ve Rızık", "en": "Halal Earnings and Sustenance", "no": "Lovlig inntjening og livsopphold"},
-        "Öğüt": {"tr": "Rızkın helal yoldan kazanılması esastır; haram lokma insanın maneviyatını karartır.", "en": "Earning sustenance through halal means is essential; unlawful morsels darken one's spirituality.", "no": "Det er essensielt å tjene til livets opphold på lovlig vis; ulovlige matbitar formørker åndeligheten."},
-        "Örnek ve Tatbikat": {"tr": "Helal kazançla yetinip haram yollardan rızık aramamak.", "en": "Being content with halal earnings and not seeking sustenance through unlawful means.", "no": "Å være fornøyd med lovlig inntjening og ikke søke livsopphold gjennom ulovlige veier."},
-        "Eser ve Detaylı Kaynak": {"tr": "Ondokuzuncu Lem'a / Sözler", "en": "The Nineteenth Flash / The Words", "no": "Det nittende glimt / Ordene"},
-    },
-    {
-        "ID": 43,
-        "Konu": {"tr": "Adalet ve Hakkaniyet Ölçüsü", "en": "Measure of Justice and Fairness", "no": "Målestokk for rettferdighet og rimelighet"},
-        "Öğüt": {"tr": "Her işte adalet ve hakkaniyetle hareket edilmeli, kimsenin hakkı yenmemelidir.", "en": "One should act with justice and fairness in every matter, and no one's rights should be violated.", "no": "Man bør handle med rettferdighet og rimelighet i enhver sak, og ingens rettigheter må krenkes."},
-        "Örnek ve Tatbikat": {"tr": "Ticarete ve günlük ilişkilere hakkaniyeti yansıtmak.", "en": "Reflecting fairness in trade and daily relationships.", "no": "Å gjenspeile rettferdighet i handel og daglige relasjoner."},
-        "Eser ve Detaylı Kaynak": {"tr": "Divan-ı Harb-i Örfî", "en": "Divan-ı Harb-i Örfî", "no": "Divan-ı Harb-i Örfî"},
-    },
-    {
-        "ID": 44,
-        "Konu": {"tr": "Tartı ve Ölçüde Adalet", "en": "Justice in Weighing and Measuring", "no": "Rettferdighet i vekt og mål"},
-        "Öğüt": {"tr": "Alışverişte hile yapılmamalı, tartı ve ölçüde adaletli olunmalıdır.", "en": "No cheating should be done in trade; justice must be maintained in weight and measure.", "no": "Man må ikke snyte i handel; det må utvises rettferdighet i vekt og mål."},
-        "Örnek ve Tatbikat": {"tr": "Müşteriye malın kusurunu gizlemeden dürüstçe satmak.", "en": "Selling honestly to the customer without concealing the defect of the goods.", "no": "Å selge ærlig til kunden uten å skjule varens feil."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 45,
-        "Konu": {"tr": "Faizsiz Finansal Yaklaşım", "en": "Interest-Free Financial Approach", "no": "Rentefritt finansielt syn"},
-        "Öğüt": {"tr": "Faiz haramdır ve toplumun adalet dengesini bozar; faizli işlemlerden uzak durulmalıdır.", "en": "Interest is forbidden (haram) and disrupts society's balance of justice; interest-bearing transactions must be avoided.", "no": "Rente er forbudt (haram) og forstyrrer samfunnets rettferdighetsbalanse; rentebærende transaksjoner må unngås."},
-        "Örnek ve Tatbikat": {"tr": "Finansal planlamada faizsiz alternatifleri tercih etmek.", "en": "Preferring interest-free alternatives in financial planning.", "no": "Å foretrekke rentefrie alternativer i økonomisk planlegging."},
-        "Eser ve Detaylı Kaynak": {"tr": "Lem'alar / Sözler", "en": "The Flashes / The Words", "no": "Glansene / Ordene"},
-    },
-    {
-        "ID": 46,
-        "Konu": {"tr": "Rızkı Verenin Allah Olduğunu Bilme", "en": "Knowing That Allah is the Provider of Sustenance", "no": "Å vite at Allah er den som sørger for livets opphold"},
-        "Öğüt": {"tr": "'Rızkı veren Allah’tır' inancıyla hareket edilmeli, meşru dairedeki rızık herkese yeter.", "en": "One should act with the belief that 'Allah is the Provider', and lawful sustenance is sufficient for everyone.", "no": "Man bør handle med troen på at 'Allah er Forsørgeren', og lovlig livsopphold er tilstrekkelig for alle."},
-        "Örnek ve Tatbikat": {"tr": "Helal kazanca kanaat edip haram yollardan rızık aramamak.", "en": "Being content with lawful earnings and not seeking sustenance through unlawful means.", "no": "Å være fornøyd med lovlig inntjening og ikke søke livsopphold gjennom ulovlige veier."},
-        "Eser ve Detaylı Kaynak": {"tr": "Otuz İkinci Söz / Yirmi Dördüncü Söz", "en": "The Thirty-Second Word / The Twenty-Fourth Word", "no": "Det trettienne ordet / Det tjuefjerde ordet"},
-    },
-    {
-        "ID": 47,
-        "Konu": {"tr": "Meşru Dairede Çalışma Şartı", "en": "Condition of Working Within the Legitimate Sphere", "no": "Kravet om å arbeide innenfor den lovlige sfæren"},
-        "Öğüt": {"tr": "'İnsana ancak çalıştığının karşılığı vardır' sırrınca meşru dairede azami gayret sarf edilmelidir.", "en": "In accordance with the secret that 'man shall have nothing but what he strives for', maximum effort must be exerted within the legitimate sphere."},
-        "no": "I samsvar med hemmeligheten om at 'mennesket bare har det det streber for', må det utøves maksimal innsats innenfor den lovlige sfæren."},
-        "Örnek ve Tatbikat": {"tr": "İş hayatında veya ilmi çalışmalarda tembellik etmeden çalışmak.", "en": "Working without laziness in business life or academic studies.", "no": "Å arbeide uten lathet i yrkeslivet eller akademiske studier."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Dördüncü Söz", "en": "The Twenty-Fourth Word", "no": "Det tjuefjerde ordet"},
-    },
-    {
-        "ID": 48,
-        "Konu": {"tr": "Tembelliğin Sefalete Yol Açması", "en": "Laziness Leading to Misery", "no": "Lathet fører til elendighet"},
-        "Öğüt": {"tr": "Tembellik, hem dünya hem ahiret sefaletine kapı açar; daima faal olunmalıdır.", "en": "Laziness opens the door to both worldly and hereafter misery; one must always be active."},
-        "no": "Lathet åpner døren for elendighet både i verden og i det hinsidige; man må alltid være aktiv."},
-        "Örnek ve Tatbikat": {"tr": "Boş oturmak yerine faydalı işlerle meşgul olmak.", "en": "Engaging in useful work instead of sitting idle.", "no": "Å engasjere seg i nyttig arbeid i stedet for å sitte inaktiv."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mesnevi-i Nuriye", "en": "Mesnevi-i Nuriye", "no": "Mesnevi-i Nuriye"},
-    },
-    {
-        "ID": 49,
-        "Konu": {"tr": "Zamanın Hayat Hammaddesi Olması", "en": "Time Being the Raw Material of Life", "no": "Tiden som livets råstoff"},
-        "Öğüt": {"tr": "Zaman, hayatın hammaddesidir; boşa harcanan saatlerden hesap sorulacağı unutulmamalıdır.", "en": "Time is the raw material of life; it must not be forgotten that we will be called to account for wasted hours."},
-        "no": "Tiden er livets råstoff; man må ikke glemme at vi vil bli krevet til regnskap for bortkastede timer."},
-        "Örnek ve Tatbikat": {"tr": "Günlük plan yaparak vakti hem ibadet hem de ilimle değerlendirmek.", "en": "Evaluating time with both worship and knowledge by making a daily plan."},
-        "no": "Å utnytte tiden med både tilbedelse og kunnskap ved å lage en daglig plan."},
-        "Eser ve Detaylı Kaynak": {"tr": "Birinci Söz / Asâ-yı Musa", "en": "The First Word / The Staff of Moses", "no": "Det første ordet / Moses' stav"},
-    },
-    {
-        "ID": 50,
-        "Konu": {"tr": "Ehl-i Meşveretle Karar Alma", "en": "Making Decisions with People of Consultation", "no": "Å treffe beslutninger med rådsmedlemmer"},
-        "Öğüt": {"tr": "Önemli işlerde ehl-i meşveret ile istişare edilmeli, tek başına buyruk hareket edilmelidir.", "en": "Important matters should be consulted with people of consultation; one should not act autocratically alone."},
-        "no": "Viktige saker bør drøftes med folk som har greie på rådslagning; man bør ikke handle egenmektig alene."},
-        "Örnek ve Tatbikat": {"tr": "Ailevi veya kurumsal kararları ortak akılla almak.", "en": "Making family or institutional decisions with a common mind."},
-        "no": "Å treffe familie- eller institusjonelle beslutninger med felles forstand."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat / Lem'alar", "en": "Letters / The Flashes", "no": "Brev / Glansene"},
-    },
-    {
-        "ID": 51,
-        "Konu": {"tr": "Meşveret Kararına Uyum", "en": "Compliance with Consultation Decision", "no": "Etterlevelse av rådets beslutning"},
-        "Öğüt": {"tr": "İstişarelerde herkes fikrini söylemeli, karar verildikten sonra o karar tam uyulmalıdır.", "en": "Everyone should express their opinion in consultations, and after the decision is made, it must be fully complied with."},
-        "no": "Alle bør uttrykke sin mening i rådslagninger, og når beslutningen er tatt, må den følges fullt ut."},
-        "Örnek ve Tatbikat": {"tr": "Çoğunluğun aldığı karara sadık kalıp muhalefeti sürdürmemek.", "en": "Remaining loyal to the decision made by the majority and not continuing opposition."},
-        "no": "Å forbli lojal mot flertallets beslutning og ikke fortsette opposisjonen."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 52,
-        "Konu": {"tr": "Hata Karşısında İnat Etmeme", "en": "Not Being Stubborn in the Face of Mistake", "no": "Ikke være sta ved feiltrinn"},
-        "Öğüt": {"tr": "Hata yapıldığında inat edilmemeli, hemen hatadan dönülüp hakka teslim olunmalıdır.", "en": "When a mistake is made, one must not be stubborn, but immediately return from the error and submit to the truth."},
-        "no": "Når man gjør en feil, må man ikke være sta, men umiddelbart vende om fra feilen og underkaste seg sannheten."},
-        "Örnek ve Tatbikat": {"tr": "Hatalı olunduğu anlaşıldığında özür dileyip doğrusunu benimsemek.", "en": "Apologizing and adopting the correct way when realizing one is at fault."},
-        "no": "Å be om anmodning og ta til seg det rette når man innser at man tar feil."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 53,
-        "Konu": {"tr": "İstikamet Üzere Kararlılık", "en": "Steadfastness on the Straight Path (Istiqamah)", "no": "Standhaftighet på den rette vei (Istiqamah)"},
-        "Öğüt": {"tr": "İman ve amelde istikamet üzere sebat edilmeli, aşırılıklardan kaçınılmalıdır.", "en": "Steadfastness must be maintained on the straight path in faith and practice, and extremes avoided."},
-        "no": "Man må opprettholde standhaftighet på den rette veien i tro og praksis, og unngå ytterligheter."},
-        "Örnek ve Tatbikat": {"tr": "İbadetlerde ve ahlaki duruşta dengeli ve kararlı olmak.", "en": "Being balanced and determined in worship and moral stance."},
-        "no": "Å være balansefull og målbevisst i tilbedelse og moralsk holdning."},
-        "Eser ve Detaylı Kaynak": {"tr": "Birinci Lem'a / Mektubat", "en": "The First Flash / Letters", "no": "Det første glimt / Brev"},
-    },
-    {
-        "ID": 54,
-        "Konu": {"tr": "Müminler Hakkında Hüsn-ü Zan", "en": "Good Opinion (Husn-i Zan) Regarding Believers", "no": "Gode tanker (Husn-i Zan) om troende"},
-        "Öğüt": {"tr": "Müslümanlar hakkında su-i zan yerine hüsn-ü zan (iyi zannetmek) esastır.", "en": "Having a good opinion (husn-i zan) about Muslims instead of a bad opinion is essential."},
-        "no": "Det å ha gode tanker (husn-i zan) om muslimer i stedet for mistillit, er essensielt."},
-        "Örnek ve Tatbikat": {"tr": "Birinin davranışını kötüye yormak yerine makul bir mazeret aramak.", "en": "Looking for a reasonable excuse instead of interpreting someone's behavior negatively."},
-        "no": "Å lete etter en rimelig unnskyldning i stedet for å tolke noens oppførsel negativt."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a", "en": "The Twenty-Second Flash", "no": "Det tjueandre glimt"},
-    },
-    {
-        "ID": 55,
-        "Konu": {"tr": "Hakiki Dostun Vefası", "en": "Loyalty of a True Friend", "no": "En sann venns lojalitet"},
-        "Öğüt": {"tr": "Hakiki dost, hata karşısında terk eden değil, düzeltmeye çalışan vefakardır.", "en": "A true friend is loyal, not abandoning upon a mistake, but trying to correct it."},
-        "no": "En sann venn er lojal; han forlater deg ikke ved en feil, men forsøker å rette opp i den."},
-        "Örnek ve Tatbikat": {"tr": "Zor gününde arkadaşının yanında olup ona destek olmak.", "en": "Being by a friend's side on their difficult day and supporting them."},
-        "no": "Å være ved en venns side på hans vanskelige dag og støtte ham."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 56,
-        "Konu": {"tr": "Kötülüğe Karşı İyilikle Mukabele", "en": "Responding to Evil with Good", "no": "Å møte ondt med godt"},
-        "Öğüt": {"tr": "Kötülüğe kötülükle karşılık vermek yerine, iyilikle mukabele edilmelidir.", "en": "Instead of responding to evil with evil, one should respond with good."},
-        "no": "I stedet for å svare på ondt med ondt, bør man svare med godhet."},
-        "Örnek ve Tatbikat": {"tr": "Size kaba davranan birine tebessüm ve tatlı dille karşılık vermek.", "en": "Responding with a smile and gentle speech to someone rude to you."},
-        "no": "Å svare med et smil og mildt språk til en som er uforskammet mot deg."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 57,
-        "Konu": {"tr": "İman Hizmetinde Sebatkar Olma", "en": "Being Steadfast in the Service of Faith", "no": "Å være standhaftig i troens tjeneste"},
-        "Öğüt": {"tr": "Zorluklar karşısında pes etmemeli, iman hizmetinde sabit-kadem olunmalıdır.", "en": "One must not give up in the face of difficulties and must remain steadfast in the service of faith."},
-        "no": "Man må ikke gi opp i møte med vanskeligheter, og man må forbli standhaftig i troens tjeneste."},
-        "Örnek ve Tatbikat": {"tr": "Engeller karşısında azmi kaybetmeyip yola devam etmek.", "en": "Continuing on the path without losing determination against obstacles."},
-        "no": "Å fortsette på veien uten å miste pågangsmotet mot hindringer."},
-        "Eser ve Detaylı Kaynak": {"tr": "Barla Lahikası / Kastamonu Lahikası", "en": "Barla Lahika / Kastamonu Lahika", "no": "Barla Lahika / Kastamonu Lahika"},
-    },
-    {
-        "ID": 58,
-        "Konu": {"tr": "Zayıf ve Muhtaçlara Şefkat", "en": "Compassion for the Weak and Needy", "no": "Medfølelse med svake og trengende"},
-        "Öğüt": {"tr": "Bütün canlılara, özellikle çocuklara ve zayıflara karşı merhametli olunmalıdır.", "en": "One must be merciful to all living beings, especially children and the weak."},
-        "no": "Man må være barmhjertig mot alle levende vesener, spesielt barn og svake."},
-        "Örnek ve Tatbikat": {"tr": "Sokaktaki kimsesizlere ve yardıma muhtaçlara kol kanat germek.", "en": "Extending a protective wing to the homeless and needy on the street."},
-        "no": "Å strekke ut en beskyttende hånd til de hjemløse og trengende på gaten."},
-        "Eser ve Detaylı Kaynak": {"tr": "Şualar / Mektubat", "en": "The Rays / Letters", "no": "Strålene / Brev"},
-    },
-    {
-        "ID": 59,
-        "Konu": {"tr": "Sokak Hayvanlarına Merhamet", "en": "Mercy to Street Animals", "no": "Barmhjertighet mot gatehunder og katter"},
-        "Öğüt": {"tr": "Hayvanlara eziyet edilmemelidir; onların da merhamet görmeye hakkı vardır.", "en": "Animals must not be tortured; they also have the right to receive mercy."},
-        "no": "Dyr må ikke mishandles; de har også rett til å bli vist barmhjertighet."},
-        "Örnek ve Tatbikat": {"tr": "Kış günlerinde sokak hayvanları için kap önüne su ve mama koymak.", "en": "Putting water and food in front of doors for street animals on winter days."},
-        "no": "Å sette ut vann og mat foran døren til gatepattedyr på vinterdager."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Dördüncü Söz", "en": "The Twenty-Fourth Word", "no": "Det tjuefjerde ordet"},
-    },
-    {
-        "ID": 60,
-        "Konu": {"tr": "Tedbir Sonrası Tevekkül", "en": "Trust in Allah (Tevekkül) After Precaution", "no": "Tillit til Allah (Tevekkül) etter forhåndsregler"},
-        "Öğüt": {"tr": "Tedbir alındıktan sonra işin sonu Allah’a bırakılmalı; neticeye razı olunmalıdır.", "en": "After taking precautions, the end of the matter should be left to Allah; one must be content with the result."},
-        "no": "Etter å ha tatt forholdsregler, bør sakens utfall overlates til Allah; man må være fornøyd med resultatet."},
-        "Örnek ve Tatbikat": {"tr": "Sınava veya işe hazırlanıp elimizden geleni yaptıktan sonra sonucu Allah'a havale etmek.", "en": "Entrusting the result to Allah after preparing for an exam or work and doing our best."},
-        "no": "Å overlate resultatet til Allah etter å ha forberedt seg til en eksamen eller jobb og gjort sitt beste."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Üçüncü Söz / Otuz Üçüncü Mektup", "en": "The Twenty-Third Word / The Thirty-Third Letter", "no": "Det tjuetre ordet / Det trettitredje brevet"},
-    },
-    {
-        "ID": 61,
-        "Konu": {"tr": "Mukadderata İmanla Yaklaşma", "en": "Approaching Destiny with Faith", "no": "Å møte skjebnen med tro"},
-        "Öğüt": {"tr": "Başa gelen mukadder olaylara imanla yaklaşılmalı, isyan edilmemelidir.", "en": "Incoming destined events must be approached with faith, and rebellion must be avoided."},
-        "no": "Forutbestemte hendelser som rammer en, må møtes med tro, og opprør må unngås."},
-        "Örnek ve Tatbikat": {"tr": "Beklenmedik bir kayıp karşısında metaneti korumak.", "en": "Maintaining fortitude against an unexpected loss."},
-        "no": "Å opprettholde standhaftighet i møte med et uventet tap."},
-        "Eser ve Detaylı Kaynak": {"tr": "Otuz İkinci Söz / Yirmi Altıncı Söz", "en": "The Thirty-Second Word / The Twenty-Sixth Word", "no": "Det trettienne ordet / Det tjuesjette ordet"},
-    },
-    {
-        "ID": 62,
-        "Konu": {"tr": "Dua İbadetinin Ehemmiyeti", "en": "Importance of the Worship of Supplication (Dua)", "no": "Betydningen av bønn (Dua)"},
-        "Öğüt": {"tr": "Dua ibadettir; kulun Rabbine en yakın olduğu andır, dualarda ısrarcı olunmalıdır.", "en": "Supplication is worship; it is the moment when the servant is closest to their Lord, and one should persist in prayers."},
-        "no": "Bønn er tilbedelse; det er det øyeblikket tjeneren er nærmest sin Herre, og man bør være vedholdende i bønner."},
-        "Örnek ve Tatbikat": {"tr": "Gecenin sessizliğinde samimi bir kalple Allah'a el açıp niyaz etmek.", "en": "Opening hands and supplicating to Allah with a sincere heart in the silence of the night."},
-        "no": "Å åpne hendene og påkalle Allah med et oppriktig hjerte i nattens stillhet."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Üçüncü Söz", "en": "The Twenty-Third Word", "no": "Det tjuetre ordet"},
-    },
-    {
-        "ID": 63,
-        "Konu": {"tr": "Günah Sonrası Tövbe Hızı", "en": "Speed of Repentance After Sin", "no": "Rask omvendelse etter synd"},
-        "Öğüt": {"tr": "Günah işlendiğinde derhal tövbe edilmeli, kalbin pası istiğfarla temizlenmelidir.", "en": "When a sin is committed, repentance should be made immediately, and the rust of the heart cleaned with seeking forgiveness."},
-        "no": "Når en synd begås, bør man omvende seg umiddelbart, og hjertets rust må rengjøres ved å søke tilgivelse."},
-        "Örnek ve Tatbikat": {"tr": "Yapılan bir hatadan hemen sonra pişmanlık duyup af dilemek.", "en": "Feeling regret and asking for forgiveness immediately after making a mistake."},
-        "no": "Å føle angring umiddelbart etter en feil og be om tilgivelse."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Dokuzuncu Lem'a", "en": "The Twenty-Ninth Flash", "no": "Det tjueniende glimt"},
-    },
-    {
-        "ID": 64,
-        "Konu": {"tr": "Akşamları Nefis Muhasebesi", "en": "Self-Accountability in the Evenings", "no": "Selvransakelse om kvelden"},
-        "Öğüt": {"tr": "Her gün akşam yatmadan önce o gün yapılanların muhasebesi yapılmalıdır.", "en": "Every day before going to sleep in the evening, an account of what was done that day should be made."},
-        "no": "Hver dag før man legger seg om kvelden, bør det gjøres et regnskap over det som ble gjort den dagen."},
-        "Örnek ve Tatbikat": {"tr": "Günün dökümünü çıkararak nerede yanlış yapıldığını düşünmek.", "en": "Thinking about where mistakes were made by reviewing the day."},
-        "no": "Å vurdere dagen og tenke over hvor det ble gjort feil."},
-        "Eser ve Detaylı Kaynak": {"tr": "Sözler", "en": "The Words", "no": "Ordene"},
-    },
-    {
-        "ID": 65,
-        "Konu": {"tr": "Zararlı Arkadaş Çevresinden Uzaklaşma", "en": "Staying Away from Harmful Friend Circles", "no": "Holde seg unna skadelige vennekretser"},
-        "Öğüt": {"tr": "İnsanı zararlı alışkanlıklara sürükleyen kötü arkadaşlardan uzak durulmalıdır.", "en": "Bad friends who drag a person into harmful habits should be avoided."},
-        "no": "Man bør holde seg unna dårlige venner som drar en person inn i skadelige vaner."},
-        "Örnek ve Tatbikat": {"tr": "Çevredeki arkadaşları ahlaki yönden süzgeçten geçirmek.", "en": "Filtering friends around morally."},
-        "no": "Å filtrere venner rundt seg ut fra et moralsk perspektiv."},
-        "Eser ve Detaylı Kaynak": {"tr": "Dokuzuncu Söz / Gençlik Rehberi", "en": "The Ninth Word / Guide for Youth", "no": "Det niende ordet / Ungdommens veiledning"},
-    },
-    {
-        "ID": 66,
-        "Konu": {"tr": "Kur'an ve Risale Mütalaası", "en": "Study of the Quran and Risale-i Nur", "no": "Studium av Koranen og Risale-i Nur"},
-        "Öğüt": {"tr": "Risale-i Nur ve Kur'an hakikatleri daimî bir şekilde mütalaa edilmelidir.", "en": "The truths of Risale-i Nur and the Quran must be studied continuously."},
-        "no": "Sannhetene i Risale-i Nur og Koranen må studeres kontinuerlig."},
-        "Örnek ve Tatbikat": {"tr": "Düzenli olarak günlük kitap okuma seansları düzenlemek.", "en": "Arranging regular daily book-reading sessions."},
-        "no": "Å legge til rette for regelmessige daglige boklesingsøkter."},
-        "Eser ve Detaylı Kaynak": {"tr": "Kastamonu Lahikası", "en": "Kastamonu Lahika", "no": "Kastamonu Lahika"},
-    },
-    {
-        "ID": 67,
-        "Konu": {"tr": "İman Hizmetinde Zaman Ayırma", "en": "Allocating Time for the Service of Faith", "no": "Avsette tid til troens tjeneste"},
-        "Öğüt": {"tr": "İman hizmetinde maddi ve manevi fedakarlıktan kaçınmamak gerekir.", "en": "One must not shy away from material and spiritual sacrifice in the service of faith."},
-        "no": "Man må ikke vike unna materielle og åndelige ofre i troens tjeneste."},
-        "Örnek ve Tatbikat": {"tr": "Hizmet için zamandan ve imkanlardan gönüllü feragat etmek.", "en": "Voluntarily relinquishing time and means for the service."},
-        "no": "Å frivillig avgi tid og midler for tjenestens skyld."},
-        "Eser ve Detaylı Kaynak": {"tr": "Barla Lahikası", "en": "Barla Lahika", "no": "Barla Lahika"},
-    },
-    {
-        "ID": 68,
-        "Konu": {"tr": "Hizmette Karşılıksızlık Prensibi", "en": "Principle of Unconditionality in Service", "no": "Prinsippet om uvilkårlighet i tjenesten"},
-        "Öğüt": {"tr": "Allah rızası için yapılan hizmetlerde hiçbir menfaat veya makam beklenmemelidir.", "en": "No personal interest or status should be expected in services done for the sake of Allah's pleasure."},
-        "no": "Ingen personlig interesse eller status bør forventes i tjenester utført for Allahs velbehags skyld."},
-        "Örnek ve Tatbikat": {"tr": "Karşılıksız iyilik yapıp bunu kimseye bildirmemek.", "en": "Doing good unconditionally without letting anyone know."},
-        "no": "Å gjøre gode gjerninger ubetinget uten å la noen vite det."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz (İhlas Risalesi)", "en": "The Twenty-Second Word (Treatise on Sincerity)", "no": "Det tjueandre ordet (Avhandling om oppriktighet)"},
-    },
-    {
-        "ID": 69,
-        "Konu": {"tr": "Şahsi İddiaları Cemaate Feda Etme", "en": "Sacrificing Personal Claims for the Community", "no": "Å offre personlige krav for fellesskapet"},
-        "Öğüt": {"tr": "Cemaat olmanın rahmeti unutulmamalı; şahsi iddialar cemaatin maslahatına feda edilmelidir.", "en": "The mercy of being a community must not be forgotten; personal claims should be sacrificed for the public interest of the community."},
-        "no": "Barmhjertigheten ved å være et fellesskap må ikke glemmes; personlige krav bør offres for fellesskapets felles beste."},
-        "Örnek ve Tatbikat": {"tr": "Ortak fayda için bireysel istekleri geri plana itmek.", "en": "Pushing individual desires to the background for the common benefit."},
-        "no": "Å skyve individuelle ønske i bakgrunnen for felles beste."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz / Mektubat", "en": "The Twenty-Second Word / Letters", "no": "Det tjueandre ordet / Brev"},
-    },
-    {
-        "ID": 70,
-        "Konu": {"tr": "Siyaset", "en": "Politics", "no": "Politikk"},
-        "Öğüt": {"tr": "Hakiki iman hizmeti, günlük siyasi çekişmelerin ve tarafgirliklerin üstünde tutulmalıdır.", "en": "True service of faith must be kept above daily political conflicts and partisan biases."},
-        "no": "Den sanne tjenesten for troen må holdes hevet over daglige politiske konflikter og partipasisk forutinntatthet."},
-        "Örnek ve Tatbikat": {"tr": "Maneviyatı siyasete alet etmeden tarafsız kalabilmek.", "en": "Remaining neutral without making spirituality a tool for politics."},
-        "no": "Å forbli nøytral uten å gjøre spiritualitet til et politisk verktøy."},
-        "Eser ve Detaylı Kaynak": {"tr": "Divan-ı Harb-i Örfî / Emirdağ Lahikası", "en": "Divan-ı Harb-i Örfî / Emirdağ Lahika", "no": "Divan-ı Harb-i Örfî / Emirdağ Lahika"},
-    },
-    {
-        "ID": 71,
-        "Konu": {"tr": "Vatan ve Asayiş", "en": "Homeland and Public Order", "no": "Fedrelandet og offentlig orden"},
-        "Öğüt": {"tr": "Vatanın asayişi ve huzuru her şeyin üstünde tutulmalı, asayişi bozacak şeylerden kaçınılmalıdır.", "en": "The public order and peace of the homeland must be kept above everything, and things that disrupt public order must be avoided."},
-        "no": "Fedrelandets offentlige orden og fred må holdes over alt annet, og ting som forstyrrer den offentlige orden må unngås."},
-        "Örnek ve Tatbikat": {"tr": "Toplumsal barışı zedeleyecek provokasyonlara karşı uyanık olmak.", "en": "Being alert against provocations that will harm social peace."},
-        "no": "Å være årvåken mot provokasjoner som vil skade samfunnsfreden."},
-        "Eser ve Detaylı Kaynak": {"tr": "Emirdağ Lahikası / Şualar", "en": "Emirdağ Lahika / The Rays", "no": "Emirdağ Lahika / Strålene"},
-    },
-    {
-        "ID": 72,
-        "Konu": {"tr": "Kalp Kırmak", "en": "Breaking Hearts", "no": "Å knuse hjerter"},
-        "Öğüt": {"tr": "Kabe binasından daha mukaddes olan insan kalbi kırılmamalı, kimsenin ahı alınmamalıdır.", "en": "The human heart, which is more sacred than the building of the Kaaba, must not be broken, and no one's sigh should be taken."},
-        "no": "Det menneskelige hjertet, som er mer hellig enn Kaba-bygningen, må ikke knuses, og ingen bør bli påført sukk eller urett."},
-        "Örnek ve Tatbikat": {"tr": "Konuşurken kılı kırk yararak kimsenin kalbini incitmemek.", "en": "Not hurting anyone's heart by being extremely meticulous when speaking."},
-        "no": "Å ikke såre noens hjerte ved å være ytterst omhyggelig når man snakker."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 73,
-        "Konu": {"tr": "İletişim", "en": "Communication", "no": "Kommunikasjon"},
-        "Öğüt": {"tr": "İnsanlarla iletişimde tatlı dil, güler yüz ve latifeli yaklaşım esas alınmalıdır.", "en": "Sweet language, a smiling face, and a pleasant approach must be adopted in communication with people."},
-        "no": "Søtt språk, et smilende ansikt og en hyggelig tilnærming må legges til grunn i kommunikasjonen med mennesker."},
-        "Örnek ve Tatbikat": {"tr": "İnsanları tebessümle ve samimi bir üslupla karşılamak.", "en": "Welcoming people with a smile and a sincere style."},
-        "no": "Å ønske mennesker velkommen med et smil og en oppriktig stil."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat / Lem'alar", "en": "Letters / The Flashes", "no": "Brev / Glansene"},
-    },
-    {
-        "ID": 74,
-        "Konu": {"tr": "Öfke", "en": "Anger", "no": "Sinne"},
-        "Öğüt": {"tr": "Öfkeliyken karar verilmemeli, öfke anında susulmalı veya abdest alınmalıdır.", "en": "Decisions should not be made while angry; in moments of anger, one should remain silent or take ablution."},
-        "no": "Beslutninger bør ikke tas mens man er sint; i øyeblikk av sinne bør man tie eller utføre ablusjon (wudu)."},
-        "Örnek ve Tatbikat": {"tr": "Sinirli anlarda ortamı terk edip sakinleşmeyi beklemek.", "en": "Leaving the environment in nervous moments and waiting to calm down."},
-        "no": "Å forlate omgivelsene i nervøse øyeblikk og vente på å roe seg ned."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mesnevi-i Nuriye", "en": "Mesnevi-i Nuriye", "no": "Mesnevi-i Nuriye"},
-    },
-    {
-        "ID": 75,
-        "Konu": {"tr": "Temizlik", "en": "Cleanliness", "no": "Renlighet"},
-        "Öğüt": {"tr": "Maddi ve manevi temizliğe azami dikkat edilmeli; beden ve mekan tutulmalıdır.", "en": "Maximum attention must be paid to material and spiritual cleanliness; body and place must be kept clean."},
-        "no": "Maksimal oppmerksomhet må vies til materiell og åndelig renlighet; kropp og omgivelser må holdes rene."},
-        "Örnek ve Tatbikat": {"tr": "Ev ve çalışma alanlarını daima derli toplu tutmak.", "en": "Always keeping home and workspaces tidy."},
-        "no": "Å alltid holde hjemmet og arbeidsplassene ryddige."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat / Lem'alar", "en": "Letters / The Flashes", "no": "Brev / Glansene"},
-    },
-    {
-        "ID": 76,
-        "Konu": {"tr": "Sağlık", "en": "Health", "no": "Helse"},
-        "Öğüt": {"tr": "Beden Allah’ın emanetidir; sağlığı korumak ve zararlı alışkanlıklardan kaçınmak önemlidir.", "en": "The body is Allah's trust; protecting health and avoiding harmful habits is important."},
-        "no": "Kroppen er en betrodd gave fra Allah; det er viktig å beskytte helsen og unngå skadelige vaner."},
-        "Örnek ve Tatbikat": {"tr": "Sağlıklı beslenip zararlı maddelerden uzak durmak.", "en": "Eating healthy and staying away from harmful substances."},
-        "no": "Å spise sunt og holde seg unna skadelige stoffer."},
-        "Eser ve Detaylı Kaynak": {"tr": "Asâ-yı Musa / Lem'alar", "en": "The Staff of Moses / The Flashes", "no": "Moses' stav / Glansene"},
-    },
-    {
-        "ID": 77,
-        "Konu": {"tr": "Sünnet", "en": "Sunnah", "no": "Sunnah (Profetens praksis)"},
-        "Öğüt": {"tr": "Hayatın her alanında Hazret-i Muhammed'in (ASV) sünnet-i seniyesine riayet edilmelidir.", "en": "The noble Sunnah of Prophet Muhammad (PBUH) must be observed in every area of life."},
-        "no": "Profeten Muhammeds (fvmh) edle Sunnah må følges på alle livets områder."},
-        "Örnek ve Tatbikat": {"tr": "Yemeğe başlarken besmele çekmek gibi küçük sünnetleri uygulamak.", "en": "Practicing small sunnahs like saying basmala when starting to eat."},
-        "no": "Å praktisere små sunnaher som å si basmala når man begynner å spise."},
-        "Eser ve Detaylı Kaynak": {"tr": "On Birinci Lem'a (Sünnet-i Seniye Risalesi)", "en": "The Eleventh Flash (Treatise on the Sunnah)", "no": "Det ellevte glimt (Avhandling om Sunnah)"},
-    },
-    {
-        "ID": 78,
-        "Konu": {"tr": "Bid'at", "en": "Innovation (Bid'ah)", "no": "Uvøren nyskapning i religionen (Bid'at)"},
-        "Öğüt": {"tr": "Dinde sonradan uydurulan bid'atlardan sakınılmalı, sünnet çizgisinden sapılmamalıdır.", "en": "Innovations (bid'ah) later invented in religion must be avoided, and the line of the Sunnah must not be deviated from."},
-        "no": "Man må unngå nyskapninger (bid'ah) som senere er funnet på i religionen, og ikke vike fra Sunnahs linje."},
-        "Örnek ve Tatbikat": {"tr": "Dini konularda hurafelere itibar etmeyip sünnete sarılmak.", "en": "Clinging to the Sunnah instead of giving credit to superstitions in religious matters."},
-        "no": "Å holde fast ved Sunnah i stedet for å tro på overtro i religiøse spørsmål."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 79,
-        "Konu": {"tr": "Kur'an", "en": "The Quran", "no": "Koranen"},
-        "Öğüt": {"tr": "Kur’an-ı Kerim her gün düzenli okunmalı, manası anlaşılmaya çalışılmalıdır.", "en": "The Holy Quran should be read regularly every day, and efforts made to understand its meaning."},
-        "no": "Den hellige Koranen bør leses regelmessig hver dag, og man bør forsøke å forstå dens mening."},
-        "Örnek ve Tatbikat": {"tr": "Her gün belirli bir sayfa meal ve tefsir okuması yapmak.", "en": "Reading a certain page of translation (meal) and exegesis (tafsir) daily."},
-        "no": "Å lese en bestemt side med oversettelse (meal) og eksegese (tafsir) daglig."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Beşinci Söz (İcazü'l-Kur'an)", "en": "The Twenty-Fifth Word (Inimitability of the Quran)", "no": "Det tjuefemte ordet (Koranens uovertruffenihet)"},
-    },
-    {
-        "ID": 80,
-        "Konu": {"tr": "Salavat", "en": "Salawat (Blessings upon the Prophet)", "no": "Salawat (Velsignelser over Profeten)"},
-        "Öğüt": {"tr": "Peygamberimize bol bol salavat getirilmeli, sünnetine tam ittiba edilmelidir.", "en": "Abundant salawat should be brought upon our Prophet, and his Sunnah strictly followed."},
-        "no": "Man bør bringe rikelig med salavat over vår Profet, og følge hans Sunnah strengt."},
-        "Örnek ve Tatbikat": {"tr": "Boş anlarda zihnen salavat-ı şerife getirmek.", "en": "Mentally bringing salawat in idle moments."},
-        "no": "Å bringe salavat mentalt i ledige stunder."},
-        "Eser ve Detaylı Kaynak": {"tr": "Dokuzuncu Mektup / Lem'alar", "en": "The Ninth Letter / The Flashes", "no": "Det niende brevet / Glansene"},
-    },
-    {
-        "ID": 81,
-        "Konu": {"tr": "İbadet Devamlılığı", "en": "Continuity in Worship", "no": "Kontinuitet i tilbedelsen"},
-        "Öğüt": {"tr": "Az da olsa sürekli yapılan ibadet, kesintili olandan daha hayırlıdır.", "en": "Worship performed continuously, even if little, is better than intermittent worship."},
-        "no": "Tilbedelse utført kontinuerlig, selv om den er liten, er bedre enn avbrutt tilbedelse."},
-        "Örnek ve Tatbikat": {"tr": "Her gün az miktarda da olsa düzenli nafile ibadet yapmak.", "en": "Performing regular voluntary worship every day, even in small amounts."},
-        "no": "Å utføre regelmessig frivillig tilbedelse hver dag, selv i små mengder."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 82,
-        "Konu": {"tr": "Nefse Güvenmeme", "en": "Not Trusting the Soul", "no": "Ikke stole på sin egen sjel (Nefs)"},
-        "Öğüt": {"tr": "Nefse asla itimat edilmemeli, son nefese kadar dikkatli olunmalıdır.", "en": "The soul must never be trusted, and one must be careful until the last breath."},
-        "no": "Man må aldri stole på sjelen, og man må være forsiktig til det siste åndedrag."},
-        "Örnek ve Tatbikat": {"tr": "'Ben günah işlemem' demeyip her an haktan nefis için koruma istemek.", "en": "Asking protection from the Truth for the soul at every moment, instead of saying 'I do not commit sins'.", "no": "Å be Sannheten om beskyttelse for sjelen i hvert øyeblikk, i stedet for å si 'jeg begår ikke synder'."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mesnevi-i Nuriye", "en": "Mesnevi-i Nuriye", "no": "Mesnevi-i Nuriye"},
-    },
-    {
-        "ID": 83,
-        "Konu": {"tr": "İhsan Şuuru", "en": "Consciousness of Ihsan (Excellence in Worship)", "no": "Bevissthet om Ihsan (Åndelig nærvær)"},
-        "Öğüt": {"tr": "Her an Allah’ın huzurunda olduğu bilinciyle (ihsan şuuruyla) yaşanmalıdır.", "en": "One must live with the consciousness of being in Allah's presence at every moment (ihsan consciousness).", "no": "Man må leve med bevisstheten om å være i Allahs nærvær til enhver tid (ihsan-bevissthet)."},
-        "Örnek ve Tatbikat": {"tr": "Kimse görmese bile Allah'ın gördüğünü bilerek dürüst davranmak.", "en": "Acting honestly knowing that Allah sees even if no one else does."},
-        "no": "Å handle ærlig med vissheten om at Allah ser, selv om ingen andre gjør det."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz", "en": "The Twenty-Second Word", "no": "Det tjueandre ordet"},
-    },
-    {
-        "ID": 84,
-        "Konu": {"tr": "Mümin Kardeşliği", "en": "Believer Brotherhood", "no": "Troende brorskap"},
-        "Öğüt": {"tr": "Sadece kendi nefsini düşünmek yerine kardeşlerinin selameti için dua edilmelidir.", "en": "Instead of thinking only of oneself, prayers should be made for the salvation of brothers."},
-        "no": "I stedet for bare å tenke på sin egen sjel, bør man be for sine brødres frelse."},
-        "Örnek ve Tatbikat": {"tr": "Gıyaben diğer mümin kardeşlerin sıkıntıları için dua etmek.", "en": "Praying in absentia for the troubles of other believing brothers."},
-        "no": "Å be i all stillhet for andre troende brødres vanskeligheter."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 85,
-        "Konu": {"tr": "İlme Hürmet", "en": "Respect for Knowledge", "no": "Respekt for kunnskap"},
-        "Öğüt": {"tr": "Kitaplar yüksek yerlere konulmalı, ilme ve kitaba hürmet gösterilmelidir.", "en": "Books should be placed in high places, and respect must be shown to knowledge and books."},
-        "no": "Bøker bør plasseres på høye steder, og det må vises respekt for kunnskap og bøker."},
-        "Örnek ve Tatbikat": {"tr": "İlim kitaplarını asla yere yakın veya ayak ucu tarafa koymamak.", "en": "Never placing books of knowledge close to the floor or toward the feet."},
-        "no": "Aldri plassere kunnskapsbøker nær gulvet eller mot føttene."},
-        "Eser ve Detaylı Kaynak": {"tr": "Barla Lahikası", "en": "Barla Lahika", "no": "Barla Lahika"},
-    },
-    {
-        "ID": 86,
-        "Konu": {"tr": "Güne Başlangıç", "en": "Starting the Day", "no": "Å starte dagen"},
-        "Öğüt": {"tr": "Güne başlarken besmele, dua ve hıfz-ı ilahi talebiyle adım atılmalıdır.", "en": "One should step into the day starting with basmala, prayer, and the request for divine protection."},
-        "no": "Man bør gå inn i dagen ved å starte med basmala, bønn og bønnen om guddommelig beskyttelse."},
-        "Örnek ve Tatbikat": {"tr": "Evden çıkarken 'Bismillahi tevekkeltü alallah' diyerek yola çıkmak.", "en": "Setting off while saying 'Bismillahi tevekkeltü alallah' when leaving the house."},
-        "no": "Å dra ut mens man sier 'Bismillahi tevekkeltü alallah' når man forlater huset."},
-        "Eser ve Detaylı Kaynak": {"tr": "Şualar", "en": "The Rays", "no": "Strålene"},
-    },
-    {
-        "ID": 87,
-        "Konu": {"tr": "Ahiret Hedefi", "en": "The Goal of the Hereafter", "no": "Målet om det hinsidige"},
-        "Öğüt": {"tr": "Hayattaki en büyük hedef imanla kabre girmek ve rıza-i ilahiyi kazanmaktır.", "en": "The greatest goal in life is to enter the grave with faith and win Allah's pleasure."},
-        "no": "Det største målet i livet er å gå inn i graven med tro og oppnå Allahs velbehag."},
-        "Örnek ve Tatbikat": {"tr": "Tüm amelleri ebedi hayatı kazanma endişesiyle şekillendirmek.", "en": "Shaping all deeds with the concern of winning eternal life."},
-        "no": "Å forme alle gjerninger med bekymringen for å vinne det evige liv."},
-        "Eser ve Detaylı Kaynak": {"tr": "Otuz İkinci Söz", "en": "The Thirty-Second Word", "no": "Det trettienne ordet"},
-    },
-    {
-        "ID": 88,
-        "Konu": {"tr": "Kardeş Hakları", "en": "Rights of Brothers", "no": "Brødrenes rettigheter"},
-        "Öğüt": {"tr": "Kardeşlik hukuku gözetilmeli; gıyabında dua edilerek destek olunmalıdır.", "en": "The law of brotherhood must be observed; support should be given by praying in their absence."},
-        "no": "Broderskapets rettigheter må overholdes; man bør støtte dem ved å be for dem i deres fravær."},
-        "Örnek ve Tatbikat": {"tr": "Bir dostun arkasından gıybetini edenleri susturup onu savunmak.", "en": "Silencing those backbiting behind a friend and defending them."},
-        "no": "Å bringe til taushet dem som baksnakker en venn bak ryggen hans, og forsvare ham."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a", "en": "The Twenty-Second Flash", "no": "Det tjueandre glimt"},
-    },
-    {
-        "ID": 89,
-        "Konu": {"tr": "Hakikati Kabul", "en": "Accepting the Truth", "no": "Å akseptere sannheten"},
-        "Öğüt": {"tr": "Hakikat nerede ve kimmisinden gelirse gelsin kollar açılarak kabul edilmelidir.", "en": "The truth must be accepted with open arms wherever and from whomever it comes."},
-        "no": "Sannheten må aksepteres med åpne armer uansett hvor og fra hvem den kommer."},
-        "Örnek ve Tatbikat": {"tr": "Doğru bir fikri küçük yaştaki birinden bile duyduğunda tasdik etmek.", "en": "Affirming a correct idea even when heard from someone young."},
-        "no": "Å bekrefte en riktig idé selv når man hører den fra en ung person."},
-        "Eser ve Detaylı Kaynak": {"tr": "Muhakemat", "en": "Muhakemat", "no": "Muhakemat"},
-    },
-    {
-        "ID": 90,
-        "Konu": {"tr": "Niyetin Safiyeti", "en": "Purity of Intention", "no": "Intensjonens renhet"},
-        "Öğüt": {"tr": "En küçük hayırlı işte bile niyet halis ve sadece Allah rızası olmalıdır.", "en": "Even in the smallest good deed, intention must be sincere and solely for Allah's pleasure."},
-        "no": "Selv i den minste gode gjerning må intensjonen være oppriktig og utelukkende for Allahs velbehag."},
-        "Örnek ve Tatbikat": {"tr": "Sadaka verirken övgü beklememek.", "en": "Not expecting praise when giving charity."},
-        "no": "Å ikke forvente ros når man gir veldedighet (sadaka)."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz", "en": "The Twenty-Second Word", "no": "Det tjueandre ordet"},
-    },
-    {
-        "ID": 91,
-        "Konu": {"tr": "Hizmet Düsturu", "en": "Principle of Service", "no": "Tjenestens prinsipp"},
-        "Öğüt": {"tr": "Hizmet-i imaniyede rekabet değil, tesanüt ve takviye esastır.", "en": "Solidarity and mutual reinforcement, not competition, are essential in the service of faith."},
-        "no": "Solidaritet og gjensidig støtte, ikke konkurranse, er avgjørende i troens tjeneste."},
-        "Örnek ve Tatbikat": {"tr": "Diğer hizmet gruplarıyla yarışmak yerine birbirinin eksiğini kapatmak.", "en": "Covering each other's shortcomings instead of competing with other service groups."},
-        "no": "Å dekke over hverandres mangler i stedet for å konkurrere med andre tjenestegrupper."},
-        "Eser ve Detaylı Kaynak": {"tr": "Barla Lahikası", "en": "Barla Lahika", "no": "Barla Lahika"},
-    },
-    {
-        "ID": 92,
-        "Konu": {"tr": "Hizmet Edebi", "en": "Etiquette of Service", "no": "Tjenestens etikette"},
-        "Öğüt": {"tr": "Ehl-i imanın inkişafına mani olacak tavırlardan kesinlikle kaçınılmalıdır.", "en": "Attitudes that will hinder the development of believers must be strictly avoided."},
-        "no": "Holdninger som vil hindre de troendes utvikling, må strengt unngås."},
-        "Örnek ve Tatbikat": {"tr": "Topluluk içinde kırıcı tartışmalara girmemek.", "en": "Not entering into hurtful discussions within the community."},
-        "no": "Å unngå sårende diskusjoner i fellesskapet."},
-        "Eser ve Detaylı Kaynak": {"tr": "Kastamonu Lahikası", "en": "Kastamonu Lahika", "no": "Kastamonu Lahika"},
-    },
-    {
-        "ID": 93,
-        "Konu": {"tr": "Kusur Örtme", "en": "Concealing Faults", "no": "Å skjule feil"},
-        "Öğüt": {"tr": "Müminlerin kusurlarını değil, güzel yönlerini ön plana çıkarmak gerekir.", "en": "It is necessary to bring forward the good aspects of believers, not their faults."},
-        "no": "Det er nødvendig å fremheve de troendes gode sider, ikke deres feil."},
-        "Örnek ve Tatbikat": {"tr": "Bir arkadaşın hatalarını yüzüne vurmak yerine güzelliklerini takdir etmek.", "en": "Appreciating a friend's beauties instead of throwing their mistakes in their face."},
-        "no": "Å verdsette en venns gode sider i stedet for å slå feilene deres i ansiktet på dem."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a", "en": "The Twenty-Second Flash", "no": "Det tjueandre glimt"},
-    },
-    {
-        "ID": 94,
-        "Konu": {"tr": "Müspet Davranış", "en": "Positive Behavior", "no": "Positiv adferd"},
-        "Öğüt": {"tr": "Zarar vermek başkadır, menfi hareket etmek başkadır; müspet hareket esastır.", "en": "Causing harm is one thing, acting negatively is another; positive action is essential."},
-        "no": "Å forårsake skade er én ting, å handle negativt er noe annet; positiv handling er essensielt."},
-        "Örnek ve Tatbikat": {"tr": "Haksızlığa uğranılsa dahi şiddete başvurmadan hukuki ve meşru yolla hakkı aramak.", "en": "Seeking rights through legal and legitimate ways without resorting to violence even if wronged."},
-        "no": "Å søke sine rettigheter gjennom lovlige og legitime måter uten å ty til vold, selv om man har lidd urett."},
-        "Eser ve Detaylı Kaynak": {"tr": "Emirdağ Lahikası", "en": "Emirdağ Lahika", "no": "Emirdağ Lahika"},
-    },
-    {
-        "ID": 95,
-        "Konu": {"tr": "Asayişi Koruma", "en": "Protecting Public Order", "no": "Beskyttelse av offentlig orden"},
-        "Öğüt": {"tr": "Asayişi ihlal edecek fitnelerden uzak durmak her mümin görevidir.", "en": "Staying away from tribulations that will violate public order is the duty of every believer."},
-        "no": "Å holde seg unna stridigheter som bryter den offentlige orden, er enhver troendes plikt."},
-        "Örnek ve Tatbikat": {"tr": "Toplumsal olaylarda sükuneti koruyup yapıcı olmak.", "en": "Preserving calm and being constructive in social events."},
-        "no": "Å bevare roen og være konstruktiv i sosiale hendelser."},
-        "Eser ve Detaylı Kaynak": {"tr": "Şualar", "en": "The Rays", "no": "Strålene"},
-    },
-    {
-        "ID": 96,
-        "Konu": {"tr": "Tesbihat", "en": "Glorification (Tesbihat)", "no": "Lovprisning (Tesbihat)"},
-        "Öğüt": {"tr": "Namazın hulasası olan tesbihatlar sünnete uygun şekilde tamamlanmalıdır.", "en": "Tesbihats, which are the summary of prayer, must be completed in accordance with the Sunnah."},
-        "no": "Tesbihatene, som er bønnens essens, må fullføres i samsvar med Sunnah."},
-        "Örnek ve Tatbikat": {"tr": "Namaz sonrasında yapılan tesbihat ve duaları aksatmamak.", "en": "Not disrupting tesbihats and prayers made after prayer."},
-        "no": "Å ikke avbryte tesbihat og bønner som utføres etter bønnen."},
-        "Eser ve Detaylı Kaynak": {"tr": "Lem'alar", "en": "The Flashes", "no": "Glansene"},
-    },
-    {
-        "ID": 97,
-        "Konu": {"tr": "Şükür Dengesi", "en": "Balance of Gratitude", "no": "Takknemlighetens balanse"},
-        "Öğüt": {"tr": "Maddi nimetlerde aşağıdakilere, manevi nimetlerde yukarıdakilere bakılmalıdır.", "en": "In material blessings, one should look at those below; in spiritual blessings, at those above."},
-        "no": "Når det gjelder materielle velsignelser, bør man se på dem som er under; når det gjelder åndelige velsignelser, på dem over."},
-        "Örnek ve Tatbikat": {"tr": "Maddi darlıkta daha fakirlere, maneviyatta ise evliyalara bakarak şükretmek.", "en": "Giving thanks by looking at the poorer in material scarcity, and at saints in spirituality."},
-        "no": "Å takke ved å se på de fattigere i materiell nød, og på helgener (evliya) i åndelighet."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirminci Lem'a", "en": "The Twentieth Flash", "no": "Det tjuende glimt"},
-    },
-    {
-        "ID": 98,
-        "Konu": {"tr": "Hakiki Sabır", "en": "True Patience", "no": "Sann tålmodighet"},
-        "Öğüt": {"tr": "Musibet anında ilk anda gösterilen metanet hakiki sabırdır.", "en": "Fortitude shown at the very first moment during a calamity is true patience."},
-        "no": "Standhaftighet som vises i det aller første øyeblikket under en ulykke, er sann tålmodighet."},
-        "Örnek ve Tatbikat": {"tr": "Kötü haberi alır almaz fevri tepki vermeyip 'Inna lillahi' demek.", "en": "Saying 'Inna lillahi' without giving an impulsive reaction as soon as bad news is received."},
-        "no": "Å si 'Inna lillahi' uten å gi en impulsiv reaksjon så snart man mottar dårlige nyheter."},
-        "Eser ve Detaylı Kaynak": {"tr": "İkinci Lem'a", "en": "The Second Flash", "no": "Det andre glimt"},
-    },
-    {
-        "ID": 99,
-        "Konu": {"tr": "Doğruluk", "en": "Veracity and Righteousness", "no": "Sannferdighet"},
-        "Öğüt": {"tr": "Hakikatin hürmetine yalan söylenmemelidir, doğru her zaman üstün tutulmalıdır.", "en": "No lies must be told out of respect for truth; the right must always be preferred."},
-        "no": "Man må ikke lyve av respekt for sannheten; det rette må alltid foretrekkes."},
-        "Örnek ve Tatbikat": {"tr": "Zor durumda kalınsa bile doğrudan sapmamak.", "en": "Not deviating from the straight path even when in a difficult situation."},
-        "no": "Å ikke vike av fra den rette veien selv i en vanskelig situasjon."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 100,
-        "Konu": {"tr": "Gıybetten Kaçınma", "en": "Avoiding Backbiting", "no": "Unngå baksnakkelser"},
-        "Öğüt": {"tr": "Gıybetin yapıldığı meclislerden hemen uzaklaşılmalı veya men edilmelidir.", "en": "Gatherings where backbiting is done must be immediately abandoned or prevented."},
-        "no": "Forsamlinger der det baksnakkes, må forlates umiddelbart eller forhindres."},
-        "Örnek ve Tatbikat": {"tr": "Dedikodu yapılan bir ortama girildiğinde konuyu değiştirmek veya oradan ayrılmak.", "en": "Changing the topic or leaving when entering an environment where gossip is performed."},
-        "no": "Å skifte tema eller forlate stedet når man kommer inn i et miljø der det sladres."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a", "en": "The Twenty-Second Flash", "no": "Det tjueandre glimt"},
-    },
-    {
-        "ID": 101,
-        "Konu": {"tr": "Emanete Sadakat", "en": "Loyalty to Trust", "no": "Lojalitet mot tillitsverv"},
-        "Öğüt": {"tr": "Maddi ya da manevi hiçbir emanete hıyanet edilmemelidir.", "en": "No betrayal should be made to any material or spiritual trust."},
-        "no": "Ingen svik bør begås mot noen materiell eller åndelig tillit."},
-        "Örnek ve Tatbikat": {"tr": "Verilen bir görevi en mükemmel şekilde zamanında bitirmek.", "en": "Finishing a given task in the most perfect way on time."},
-        "no": "Å fullføre en gitt oppgave på den mest perfekte måten i tide."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 102,
-        "Konu": {"tr": "Hizmet Şevki", "en": "Enthusiasm for Service", "no": "Entusiasme for tjeneste"},
-        "Öğüt": {"tr": "Manevi hizmetlerde şevk kırıklığına uğramadan daima aktif olunmalıdır.", "en": "One must always be active in spiritual services without losing enthusiasm."},
-        "no": "Man må alltid være aktiv i åndelige tjenester uten å miste entusiasmen."},
-        "Örnek ve Tatbikat": {"tr": "Yorulsa bile hayırlı işlerde koşturmaya devam etmek.", "en": "Continuing to run in good deeds even if tired."},
-        "no": "Å fortsette å arbeide for gode gjerninger selv om man er trøtt."},
-        "Eser ve Detaylı Kaynak": {"tr": "Barla Lahikası", "en": "Barla Lahika", "no": "Barla Lahika"},
-    },
-    {
-        "ID": 103,
-        "Konu": {"tr": "Kötü Alışkanlıklar", "en": "Bad Habits", "no": "Dårlige vaner"},
-        "Öğüt": {"tr": "İnsanı manen uyuşturan ve iradeyi zayıflatan her türlü kötü alışkanlıktan kaçınılmalıdır.", "en": "All kinds of bad habits that spiritually numb man and weaken the will must be avoided."},
-        "no": "Alle slags dårlige vaner som åndelig bedøver mennesket og svekker viljen, må unngås."},
-        "Örnek ve Tatbikat": {"tr": "Zararlı maddelerden ve bağımlılıklardan iradeyle uzak durmak.", "en": "Staying away from harmful substances and addictions with willpower."},
-        "no": "Å holde seg unna skadelige stoffer og avhengighet ved hjelp av viljestyrke."},
-        "Eser ve Detaylı Kaynak": {"tr": "Gençlik Rehberi", "en": "Guide for Youth", "no": "Ungdommens veiledning"},
-    },
-    {
-        "ID": 104,
-        "Konu": {"tr": "İhlasın Muhafazası", "en": "Preservation of Sincerity (Ihlas)", "no": "Bevaring av oppriktighet (Ihlas)"},
-        "Öğüt": {"tr": "İhlası kıracak riya ve ucub gibi kalbi hastalıklardan daima sakınılmalıdır.", "en": "One must always avoid heart diseases like hypocrisy and self-admiration that break sincerity."},
-        "no": "Man må alltid unngå hjertesykdommer som hykleri og selvbeundring som bryter ned oppriktigheten."},
-        "Örnek ve Tatbikat": {"tr": "Yapılan ibadetleri başkalarına anlatarak gösterişten kaçınmak.", "en": "Avoiding showing off by telling others about the worship performed."},
-        "no": "Å unngå skryt ved å fortelle andre om tilbedelsen som er utført."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz", "en": "The Twenty-Second Word", "no": "Det tjueandre ordet"},
-    },
-    {
-        "ID": 105,
-        "Konu": {"tr": "İbadette Huzur", "en": "Peace in Worship", "no": "Ro i tilbedelsen"},
-        "Öğüt": {"tr": "İbadetler şekilsel değil, kalbi bir huzur ve şuurla eda edilmelidir.", "en": "Worship should not be formal, but performed with a heartfelt peace and consciousness."},
-        "no": "Tilbedelse bør ikke være formell, men utføres med hjertefølt ro og bevissthet."},
-        "Örnek ve Tatbikat": {"tr": "Namaz kılarken manasını düşünerek ve huşu ile rükû etmek.", "en": "Bowing in prayer while thinking of its meaning and with awe."},
-        "no": "Å bøye seg i bønnen mens man tenker på dens mening og med ærefrykt (khushu)."},
-        "Eser ve Detaylı Kaynak": {"tr": "Sözler", "en": "The Words", "no": "Ordene"},
-    },
-    {
-        "ID": 106,
-        "Konu": {"tr": "Rızık Endişesi", "en": "Anxiety of Sustenance", "no": "Bekymring for livets opphold"},
-        "Öğüt": {"tr": "Yarınki rızık için aşırı endişe duyulmamalı, rızkı veren Kerim olan Allah'tır.", "en": "Excessive anxiety should not be felt for tomorrow's sustenance; the Provider is Allah, the Generous."},
-        "no": "Man bør ikke føle overdreven bekymring for morgendagens livsopphold; Forsørgeren er Allah, den Generøse."},
-        "Örnek ve Tatbikat": {"tr": "Gelecek kaygısını bırakıp bugünkü vazifeye odaklanmak.", "en": "Leaving future anxiety and focusing on today's duty."},
-        "no": "Å legge bort fremtidsfrykt og fokusere på dagens plikt."},
-        "Eser ve Detaylı Kaynak": {"tr": "Otuz İkinci Söz", "en": "The Thirty-Second Word", "no": "Det trettienne ordet"},
-    },
-    {
-        "ID": 107,
-        "Konu": {"tr": "Zorluklara Direnç", "en": "Resistance to Difficulties", "no": "Motstand mot vanskeligheter"},
-        "Öğüt": {"tr": "Hizmet yolundaki zorluklar birer imtihan vesilesi olarak görülmelidir.", "en": "Difficulties on the path of service should be seen as an occasion for trial."},
-        "no": "Vanskeligheter på tjenestens vei bør sees på som en anledning til prøvelse."},
-        "Örnek ve Tatbikat": {"tr": "Gelen sıkıntılara tebessümle göğüs germek.", "en": "Facing incoming troubles with a smile."},
-        "no": "Å møte innkommende vanskeligheter med et smil."},
-        "Eser ve Detaylı Kaynak": {"tr": "Kastamonu Lahikası", "en": "Kastamonu Lahika", "no": "Kastamonu Lahika"},
-    },
-    {
-        "ID": 108,
-        "Konu": {"tr": "Haddini Bilmek", "en": "Knowing One's Limit", "no": "Å kjenne sine grenser"},
-        "Öğüt": {"tr": "İnsan kendi kusurlarını görmeli, başkalarının kusuruyla meşgul olmamalıdır.", "en": "Man should see his own faults and not occupy himself with others' faults."},
-        "no": "Mennesket bør se sine egne feil og ikke oppta seg med andres feil."},
-        "Örnek ve Tatbikat": {"tr": "Aynaya bakıp kendi hatalarını düzeltmeye odaklanmak.", "en": "Looking in the mirror and focusing on correcting one's own mistakes."},
-        "no": "Å se i speilet og fokusere på å rette opp sine egne feil."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a", "en": "The Twenty-Second Flash", "no": "Det tjueandre glimt"},
-    },
-    {
-        "ID": 109,
-        "Konu": {"tr": "Manevi Temizlik", "en": "Spiritual Cleanliness", "no": "Åndelig renselse"},
-        "Öğüt": {"tr": "Kalp ve ruh, günahların ve manevi kirlerin pasından bolca istiğfarla arındırılmalıdır.", "en": "Heart and soul must be cleansed from the rust of sins and spiritual dirt with abundant seeking of forgiveness."},
-        "no": "Hjerte og sjel må renses for syndens rust og åndelig smuss ved rikelig å søke tilgivelse (istighfar)."},
-        "Örnek ve Tatbikat": {"tr": "Günde yüz defa istiğfar çekmeyi alışkanlık haline getirmek.", "en": "Making it a habit to recite seeking forgiveness a hundred times a day."},
-        "no": "Å gjøre det til en vane å resitere tilgivelsessøken hundre ganger om dagen."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Dokuzuncu Lem'a", "en": "The Twenty-Ninth Flash", "no": "Det tjueniende glimt"},
-    },
-    {
-        "ID": 110,
-        "Konu": {"tr": "Cömertlik", "en": "Generosity", "no": "Sjenerøsitet"},
-        "Öğüt": {"tr": "İnsan elindekileri Allah yolunda infak etmekten çekinmemelidir.", "en": "Man should not hesitate to spend what he has in the way of Allah."},
-        "no": "Mennesket bør ikke nøle med det det har, med å bruke det på Allahs vei."},
-        "Örnek ve Tatbikat": {"tr": "İhtiyaç sahibi biri gördüğünde elindeki imkanı paylaşmak.", "en": "Sharing one's means when seeing someone in need."},
-        "no": "Å dele sine midler når man ser en som trenger det."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 111,
-        "Konu": {"tr": "Hakka Teslimiyet", "en": "Submission to the Truth", "no": "Underkastelse under sannheten"},
-        "Öğüt": {"tr": "Hakikat zuhur ettiğinde nefis aradan çıkarılarak derhal teslim olunmalıdır.", "en": "When truth appears, the ego must be removed and immediate submission made."},
-        "no": "Når sannheten trer frem, må egoet fjernes og man må umiddelbart underkaste seg."},
-        "Örnek ve Tatbikat": {"tr": "Hatalı bir düşünceden hakikati görünce anında vazgeçmek.", "en": "Instantly abandoning a faulty thought upon seeing the truth."},
-        "no": "Å øyeblikkelig forlate en feilaktig tanke når man ser sannheten."},
-        "Eser ve Detaylı Kaynak": {"tr": "Muhakemat", "en": "Muhakemat", "no": "Muhakemat"},
-    },
-    {
-        "ID": 112,
-        "Konu": {"tr": "Kardeş Sevgisi", "en": "Love for Brothers", "no": "Kjærlighet til brødre"},
-        "Öğüt": {"tr": "Müminler birbirlerini menfaatsiz ve sadece Allah için sevmelidir.", "en": "Believers should love each other without self-interest and solely for the sake of Allah."},
-        "no": "Troende bør elske hverandre uten egennytte og utelukkende for Allahs skyld."},
-        "Örnek ve Tatbikat": {"tr": "Dostunu makamından veya malından ötürü değil, imanı sebebiyle sevmek.", "en": "Loving a friend not because of their status or wealth, but because of their faith."},
-        "no": "Å elske en venn ikke på grunn av deres status eller rikdom, men på grunn av deres tro."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a", "en": "The Twenty-Second Flash", "no": "Det tjueandre glimt"},
-    },
-    {
-        "ID": 113,
-        "Konu": {"tr": "Faydalı Konuşma", "en": "Beneficial Speech", "no": "Nyttig tale"},
-        "Öğüt": {"tr": "Malayani (faydasız) sözlerden dil muhafaza edilmeli, hikmetli konuşulmalıdır.", "en": "The tongue must be protected from useless (malayani) words, and wise speech should be practiced."},
-        "no": "Tungen må beskyttes mot unyttige (malayani) ord, og det bør snakkes med visdom."},
-        "Örnek ve Tatbikat": {"tr": "Boş laf eden meclislerde sükutu tercih etmek.", "en": "Choosing silence in gatherings that speak idle words."},
-        "no": "Å velge taushet i forsamlinger som snakker tomme ord."},
-        "Eser ve Detaylı Kaynak": {"tr": "Lem'alar", "en": "The Flashes", "no": "Glansene"},
-    },
-    {
-        "ID": 114,
-        "Konu": {"tr": "Nasihat Dinleme", "en": "Listening to Advice", "no": "Å lytte til råd"},
-        "Öğüt": {"tr": "Yapılan yapıcı eleştiriler ve nasihatler gurur yapmadan dinlenmelidir.", "en": "Constructive criticisms and advices given must be listened to without pride."},
-        "no": "Konstruktiv kritikk og råd som gis, må lyttes til uten stolthet."},
-        "Örnek ve Tatbikat": {"tr": "Bir dostun ikazını teşekkürle karşılamak.", "en": "Welcoming a friend's warning with thanks."},
-        "no": "Å ta imot en venns advarsel med takknemlighet."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 115,
-        "Konu": {"tr": "Zikir ve Fikir", "en": "Dhikr (Remembrance) and Tafakkur (Reflection)", "no": "Dhikr (Erindring) og Tafakkur (Refleksjon)"},
-        "Öğüt": {"tr": "Dil Allah'ı zikrederken, akıl kainatı tefekkürle meşgul olmalıdır.", "en": "While the tongue remembers Allah, the mind should be occupied with reflection on the universe."},
-        "no": "Mens tungen minnes Allah, bør sinnet være opptatt av refleksjon over universet."},
-        "Örnek ve Tatbikat": {"tr": "Yürüyüş yaparken esmaları zikretmek.", "en": "Reciting divine names while walking."},
-        "no": "Å resitere Guds navn (asma) mens man går."},
-        "Eser ve Detaylı Kaynak": {"tr": "Otuz Üçüncü Söz", "en": "The Thirty-Third Word", "no": "Det trettitredje ordet"},
-    },
-    {
-        "ID": 116,
-        "Konu": {"tr": "Akraba Gözetme", "en": "Observing Relatives", "no": "Å pleie omgang med slektninger"},
-        "Öğüt": {"tr": "Sıla-i rahim ihmal edilmemeli, akrabalarla olan bağlar diri tutulmalıdır.", "en": "Ties of kinship must not be neglected, and bonds with relatives kept alive."},
-        "no": "Familiens bånd (sila-i rahim) må ikke forsømmes, og båndene til slektninger må holdes i hevd."},
-        "Örnek ve Tatbikat": {"tr": "Bayramlarda ve özel günlerde büyükleri ziyaret etmek.", "en": "Visiting elders on holidays and special days."},
-        "no": "Å besøke eldre på helligdager og spesielle dager."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 117,
-        "Konu": {"tr": "Misafirperverlik", "en": "Hospitality", "no": "Gjestfrihet"},
-        "Öğüt": {"tr": "Eve gelen misafire ikramda bulunulmalı, güler yüzle ağırlanmalıdır.", "en": "Guests coming to the home must be treated, and hosted with a smiling face."},
-        "no": "Gjester som kommer til huset, må trakteres og tas imot med et smilende ansikt."},
-        "Örnek ve Tatbikat": {"tr": "Misafiri en iyi şekilde konuk edip memnun göndermek.", "en": "Hosting the guest in the best way and sending them off satisfied."},
-        "no": "Å være vertskap for gjesten på best mulig måte og sende dem av gårde fornøyde."},
-        "Eser ve Detaylı Kaynak": {"tr": "Lem'alar", "en": "The Flashes", "no": "Glansene"},
-    },
-    {
-        "ID": 118,
-        "Konu": {"tr": "Hırsın Zararı", "en": "Harm of Greed", "no": "Skaden ved grådighet"},
-        "Öğüt": {"tr": "Hırs göstermek rızkı artırmaz, aksine insanı manen yorar ve mahrum bırakır.", "en": "Showing greed does not increase sustenance; on the contrary, it tires man spiritually and leaves him deprived."},
-        "no": "Å vise grådighet øker ikke livsoppholdet; tvert imot sliter det mennesket ut åndelig og etterlater det i avsavr."},
-        "Örnek ve Tatbikat": {"tr": "Daha çok mal mülk hırsıyla sağlığı tehlikeye atmamak.", "en": "Not endangering health with the ambition for more property."},
-        "no": "Å ikke sette helsen i fare på grunn av begjær etter mer eiendom."},
-        "Eser ve Detaylı Kaynak": {"tr": "Ondokuzuncu Lem'a", "en": "The Nineteenth Flash", "no": "Det nittende glimt"},
-    },
-    {
-        "ID": 119,
-        "Konu": {"tr": "Haramdan Kaçınma", "en": "Avoiding the Unlawful (Haram)", "no": "Å unngå det ulovlige (Haram)"},
-        "Öğüt": {"tr": "Şüpheli şeylerden dahi uzak durularak takva dairesinde yaşanmalıdır.", "en": "One should live within the circle of piety (taqwa) by staying away even from doubtful things."},
-        "no": "Man bør leve innenfor fromhetens (taqwa) sirkel ved å holde seg unna selv tvilsomme ting."},
-        "Örnek ve Tatbikat": {"tr": "Helalliğinden şüphe edilen gıda veya kazançtan sakınmak.", "en": "Avoiding food or earnings whose lawfulness is doubted."},
-        "no": "Å unngå mat eller inntekter hvis lovlighet er tvilsom."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 120,
-        "Konu": {"tr": "Emaneti Koruma", "en": "Protecting the Trust", "no": "Å beskytte tilliten (Emanet)"},
-        "Öğüt": {"tr": "Hayat ve beden gibi büyük emanetler israf edilmemelidir.", "en": "Great trusts like life and body must not be squandered."},
-        "no": "Store gaver som liv og kropp må ikke sløses bort."},
-        "Örnek ve Tatbikat": {"tr": "Vücut sağlığına özen gösterip zararlı alışkanlıklardan kaçınmak.", "en": "Taking care of bodily health and avoiding harmful habits."},
-        "no": "Å ta vare på kroppens helse og unngå skadelige vaner."},
-        "Eser ve Detaylı Kaynak": {"tr": "Asâ-yı Musa", "en": "The Staff of Moses", "no": "Moses' stav"},
-    },
-    {
-        "ID": 121,
-        "Konu": {"tr": "Hakikate Sadakat", "en": "Loyalty to Truth", "no": "Lojalitet mot sannheten"},
-        "Öğüt": {"tr": "Nefsi argümanlar uğruna hakikat perdelenmemelidir.", "en": "Truth must not be veiled for the sake of egoistic arguments."},
-        "no": "Sannheten må ikke tildekkes for egoistiske argumenter sin skyld."},
-        "Örnek ve Tatbikat": {"tr": "Doğru bildiğini savunurken hakkaniyet ölçüsünden sapmamak.", "en": "Not deviating from the measure of fairness while defending what is known to be right."},
-        "no": "Å ikke avvike fra rettferdighetens mål mens man forsvarer det man vet er rett."},
-        "Eser ve Detaylı Kaynak": {"tr": "Muhakemat", "en": "Muhakemat", "no": "Muhakemat"},
-    },
-    {
-        "ID": 122,
-        "Konu": {"tr": "Manevi Terakki", "en": "Spiritual Progression", "no": "Åndelig fremgang"},
-        "Öğüt": {"tr": "Manevi derecelerde kibre düşmemek için daima aşağı seviyedekilere bakılmalıdır.", "en": "In spiritual degrees, one should always look at those at lower levels to avoid falling into pride."},
-        "no": "I åndelige grader bør man alltid se på dem på lavere nivåer for å unngå å falle i stolthet."},
-        "Örnek ve Tatbikat": {"tr": "İbadetlerde kendine güvenip ucuba girmemek.", "en": "Not trusting oneself in worship and falling into self-admiration."},
-        "no": "Å ikke stole på seg selv i tilbedelsen og falle i selvbeundring."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirminci Lem'a", "en": "The Twentieth Flash", "no": "Det tjuende glimt"},
-    },
-    {
-        "ID": 123,
-        "Konu": {"tr": "Sabit-kadem Olma", "en": "Being Firm and Steadfast", "no": "Å være standhaftig"},
-        "Öğüt": {"tr": "Hizmet yolunda rüzgarlar ne kadar sert esse de sabit-kadem durulmalıdır.", "en": "No matter how fiercely winds blow on the path of service, one must stand firm and steadfast."},
-        "no": "Uansett hvor hardt vindene blåser på tjenestens vei, må man stå fast og standhaftig."},
-        "Örnek ve Tatbikat": {"tr": "Dış etkenlerden etkilenmeden istikamet üzere kalmak.", "en": "Remaining on the straight path without being affected by external factors."},
-        "no": "Å forbli på den rette veien uten å bli påvirket av ytre faktorer."},
-        "Eser ve Detaylı Kaynak": {"tr": "Kastamonu Lahikası", "en": "Kastamonu Lahika", "no": "Kastamonu Lahika"},
-    },
-    {
-        "ID": 124,
-        "Konu": {"tr": "Fedakarlık", "en": "Self-Sacrifice", "no": "Selvoppoffrelse"},
-        "Öğüt": {"tr": "Kardeşlerin huzuru için kendi haklarından feragat edebilmek erdemdir.", "en": "It is a virtue to waive one's own rights for the peace of brothers."},
-        "no": "Det er en dygd å gi avkall på sine egne rettigheter for brødrenes fred."},
-        "Örnek ve Tatbikat": {"tr": "Ortak işlerde arkadaşına öncelik tanımak.", "en": "Giving priority to a friend in joint work."},
-        "no": "Å gi prioritet til en venn i felles arbeid."},
-        "Eser ve Detaylı Kaynak": {"tr": "Barla Lahikası", "en": "Barla Lahika", "no": "Barla Lahika"},
-    },
-    {
-        "ID": 125,
-        "Konu": {"tr": "Kini Unutma", "en": "Forgetting Grudges", "no": "Å glemme nag"},
-        "Öğüt": {"tr": "Müminler arasında kin ve düşmanlık uzun sürmemeli, çabuk barışılmalıdır.", "en": "Grudges and enmity among believers should not last long, and peace should be made quickly."},
-        "no": "Nag og fiendskap blant troende bør ikke vare lenge, og man bør slutte fred raskt."},
-        "Örnek ve Tatbikat": {"tr": "Küs olunan kişiyle ilk adımı atıp barışmak.", "en": "Taking the first step and making peace with someone being estranged from."},
-        "no": "Å ta det første skrittet og slutte fred med en man er uvenn med."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a", "en": "The Twenty-Second Flash", "no": "Det tjueandre glimt"},
-    },
-    {
-        "ID": 126,
-        "Konu": {"tr": "Ölüm Hatırlatması", "en": "Remembrance of Death", "no": "Erindring om døden"},
-        "Öğüt": {"tr": "Lezzetleri acılaştıran ölümü çokça hatırlamak nefsaniyeti kırar.", "en": "Remembering death frequently, which embitters pleasures, breaks soul-centeredness."},
-        "no": "Å huske døden ofte, som bitter tilværelsens lyster, knekker sjelsbegjæret."},
-        "Örnek ve Tatbikat": {"tr": "Mezarlık ziyaretlerini düzenli olarak tekrarlamak.", "en": "Repeating cemetery visits regularly."},
-        "no": "Å gjenta gravlundsbesøk regelmessig."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirminci Söz", "en": "The Twentieth Word", "no": "Det tyvende ordet"},
-    },
-    {
-        "ID": 127,
-        "Konu": {"tr": "İbadet Zevki", "en": "Pleasure of Worship", "no": "Tilbedelsens glede"},
-        "Öğüt": {"tr": "İbadetler bir yük olarak değil, ruhun gıdası ve sevinci olarak görülmelidir.", "en": "Worship should not be seen as a burden, but as the food and joy of the soul."},
-        "no": "Tilbedelse bør ikke sees på som en byrde, men som sjelens næring og glede."},
-        "Örnek ve Tatbikat": {"tr": "Namazı büyük bir iştiyak ve ferahla eda etmek.", "en": "Performing prayer with great eagerness and relief."},
-        "no": "Å utføre bønnen med stor lengsel og lettelse."},
-        "Eser ve Detaylı Kaynak": {"tr": "Dokuzuncu Söz", "en": "The Ninth Word", "no": "Det niende ordet"},
-    },
-    {
-        "ID": 128,
-        "Konu": {"tr": "Kötü Zan", "en": "Bad Suspicion", "no": "Dårlig mistanke"},
-        "Öğüt": {"tr": "Delilsiz olarak başkaları hakkında kötü zan beslemekten sakınılmalıdır.", "en": "One must avoid harboring bad suspicions about others without evidence."},
-        "no": "Man må unngå å huse dårlige mistanker om andre uten bevis."},
-        "Örnek ve Tatbikat": {"tr": "İnsanlar hakkında peşin hüküm vermekten kaçınmak.", "en": "Avoiding prejudgments about people."},
-        "no": "Å unngå forhåndsdømming om mennesker."},
-        "Eser ve Detaylı Kaynak": {"tr": "Lem'alar", "en": "The Flashes", "no": "Glansene"},
-    },
-    {
-        "ID": 129,
-        "Konu": {"tr": "İlim Paylaşımı", "en": "Sharing Knowledge", "no": "Deling av kunnskap"},
-        "Öğüt": {"tr": "Öğrenilen hakikatler başkalarıyla paylaşılmalı, zekatı verilmelidir.", "en": "Learned truths must be shared with others, and their zakat given."},
-        "no": "Lærte sannheter må deles med andre, og deres zakat gis."},
-        "Örnek ve Tatbikat": {"tr": "Bildiği imani bir konuyu çevresindekilere anlatmak.", "en": "Explaining a matter of faith one knows to those around."},
-        "no": "Å forklare et trosspørsmål man kjenner, til dem rundt seg."},
-        "Eser ve Detaylı Kaynak": {"tr": "Barla Lahikası", "en": "Barla Lahika", "no": "Barla Lahika"},
-    },
-    {
-        "ID": 130,
-        "Konu": {"tr": "Yalanın Zararı", "en": "Harm of Lying", "no": "Skaden ved løgn"},
-        "Öğüt": {"tr": "En masum görünen durumlarda bile yalan söylemekten kesinlikle kaçınılmalıdır.", "en": "Lying must be strictly avoided even in the most innocent-looking situations."},
-        "no": "Man må strengt unngå å lyve selv i de mest uskyldig utseende situasjoner."},
-        "Örnek ve Tatbikat": {"tr": "Şaka yollu dahi yalan söyleme alışkanlığı edinmemek.", "en": "Not acquiring the habit of lying even jokingly."},
-        "no": "Å ikke legge seg til vanen med å lyve, selv på tull."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirminci Mektup", "en": "The Twentieth Letter", "no": "Det tjuende brevet"},
-    },
-    {
-        "ID": 131,
-        "Konu": {"tr": "Girişimci Ruh", "en": "Enterprising Spirit", "no": "Entreprenørånd"},
-        "Öğüt": {"tr": "Meşru dairede rızkı aramak için tembellik etmeden hareket edilmelidir.", "en": "One should act without laziness to seek sustenance within the legitimate sphere."},
-        "no": "Man bør handle uten latskap for å søke livsopphold innenfor den lovlige sfæren."},
-        "Örnek ve Tatbikat": {"tr": "Yeni ve hayırlı projeler için çalışmaya koyulmak.", "en": "Setting to work for new and auspicious projects."},
-        "no": "Å gå i gang med arbeidet for nye og lovende prosjekter."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Dördüncü Söz", "en": "The Twenty-Fourth Word", "no": "Det tjuefjerde ordet"},
-    },
-    {
-        "ID": 132,
-        "Konu": {"tr": "Manevi Kalkan", "en": "Spiritual Shield", "no": "Åndelig skjold"},
-        "Öğüt": {"tr": "Günahlardan korunmak için sabır ve namaz en büyük kalkandır.", "en": "Patience and prayer are the greatest shield to be protected from sins."},
-        "no": "Tålmodighet og bønn er det største skjoldet for å bli beskyttet mot synder."},
-        "Örnek ve Tatbikat": {"tr": "Nefis zorlandığında namaza ve sabra sığınmak.", "en": "Taking refuge in prayer and patience when the soul is strained."},
-        "no": "Å søke tilflukt i bønn og tålmodighet når sjelen presses."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Birinci Mektup", "en": "The Twenty-First Letter", "no": "Det tjueførste brevet"},
-    },
-    {
-        "ID": 133,
-        "Konu": {"tr": "Müsbet Düşünce", "en": "Positive Thinking", "no": "Positiv tenkning"},
-        "Öğüt": {"tr": "Olaylara hep bardağın dolu tarafından bakıp hüsn-ü zan edilmelidir.", "en": "One should always look at events from the full side of the glass and have a good opinion."},
-        "no": "Man bør alltid betrakte hendelser fra den positive siden og ha gode tanker (husn-i zan)."},
-        "Örnek ve Tatbikat": {"tr": "Olumsuzluklarda bile bir hayır aramak.", "en": "Seeking a good in even negative things."},
-        "no": "Å søke noe godt selv i negative ting."},
-        "Eser ve Detaylı Kaynak": {"tr": "Emirdağ Lahikası", "en": "Emirdağ Lahika", "no": "Emirdağ Lahika"},
-    },
-    {
-        "ID": 134,
-        "Konu": {"tr": "Şefkatli Yaklaşım", "en": "Compassionate Approach", "no": "Medfølende tilnærming"},
-        "Öğüt": {"tr": "İnsanları irşat ederken veya uyarırken sert değil, şefkatli olunmalıdır.", "en": "While guiding or warning people, one should not be harsh, but compassionate."},
-        "no": "Når man veileder eller advarer folk, bør man ikke være hard, men medfølende."},
-        "Örnek ve Tatbikat": {"tr": "Hata yapan biri kurucu değil, merhametli bir lisanla yaklaşmak.", "en": "Approaching someone who makes a mistake with a merciful language, not a hurtful one."},
-        "no": "Å nærme seg en som gjør en feil, med et barmhjertig språk, ikke et sårende."},
-        "Eser ve Detaylı Kaynak": {"tr": "Şualar", "en": "The Rays", "no": "Strålene"},
-    },
-    {
-        "ID": 135,
-        "Konu": {"tr": "Dürüst Ticaret", "en": "Honest Trade", "no": "Ærlig handel"},
-        "Öğüt": {"tr": "Ticarette dürüstlük ve güvenilirlik en büyük sermayedir.", "en": "Honesty and reliability in trade are the greatest capital."},
-        "no": "Ærlighet og pålitelighet i handel er den største kapitalen."},
-        "Örnek ve Tatbikat": {"tr": "Alacak verecek hesaplarında son derece titiz davranmak.", "en": "Acting extremely meticulously in accounts of receivables and payables."},
-        "no": "Å opptre svært nidkjært i regnskaper over fordringer og gjeld."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 136,
-        "Konu": {"tr": "İsraftan Kaçınma", "en": "Avoiding Waste", "no": "Å unngå sløsing"},
-        "Öğüt": {"tr": "Elektrik, su ve ekmek gibi en küçük nimetler bile israf edilmemelidir.", "en": "Even the smallest blessings like electricity, water, and bread must not be wasted."},
-        "no": "Selv de minste velsignelser som elektrisitet, vann og brød må ikke sløses bort."},
-        "Örnek ve Tatbikat": {"tr": "Boş yanan lambaları kapatıp muslukları damlatmayacak şekilde sıkmak.", "en": "Turning off lamps burning empty and tightening faucets so they do not drip."},
-        "no": "Å slukke lyspærer som lyser unødvendig, og stramme kranene slik at de ikke drypper."},
-        "Eser ve Detaylı Kaynak": {"tr": "Ondokuzuncu Lem'a", "en": "The Nineteenth Flash", "no": "Det nittende glimt"},
-    },
-    {
-        "ID": 137,
-        "Konu": {"tr": "Ahiret Yatırımı", "en": "Investment for the Hereafter", "no": "Investering for det hinsidige"},
-        "Öğüt": {"tr": "Dünya menfaatleri ahiret kazançlarına tercih edilmemelidir.", "en": "Worldly interests should not be preferred over the earnings of the hereafter."},
-        "no": "Verdslige interesser bør ikke foretrekkes fremfor det hinsidiges fortjeneste."},
-        "Örnek ve Tatbikat": {"tr": "Geçici dünya zevkleri için ebedi saadeti tehlikeye atmamak.", "en": "Not endangering eternal happiness for temporary worldly pleasures."},
-        "no": "Å ikke sette den evige lykken på spill for midlertidige verdslige lyster."},
-        "Eser ve Detaylı Kaynak": {"tr": "Otuz İkinci Söz", "en": "The Thirty-Second Word", "no": "Det trettienne ordet"},
-    },
-    {
-        "ID": 138,
-        "Konu": {"tr": "Manevi Dostluk", "en": "Spiritual Friendship", "no": "Åndelig vennskap"},
-        "Öğüt": {"tr": "Hakiki dostlar insanı Allah'a yaklaştıran onurlu kişilerdir.", "en": "True friends are honorable people who bring man closer to Allah."},
-        "no": "Sanne venner er ærefulle personer som bringer mennesket nærmere Allah."},
-        "Örnek ve Tatbikat": {"tr": "İbadet ve ilim meclislerinde ortak dostluklar kurmak.", "en": "Establishing mutual friendships in gatherings of worship and knowledge."},
-        "no": "Å etablere felles vennskap i forsamlinger for tilbedelse og kunnskap."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 139,
-        "Konu": {"tr": "Kötü Arkadaş", "en": "Bad Friend", "no": "Dårlig venn"},
-        "Öğüt": {"tr": "İnsanı manen düşüren kötü arkadaşlarla bağlar nazikçe kesilmelidir.", "en": "Bonds with bad friends who spiritually degrade a person should be politely severed."},
-        "no": "Båndene til dårlige venner som åndelig bryter ned en person, bør kuttes på en høflig måte."},
-        "Örnek ve Tatbikat": {"tr": "Zararlı çevrelerden uzak durup sağlıklı sosyal çevre edinmek.", "en": "Staying away from harmful environments and acquiring a healthy social environment."},
-        "no": "Å holde seg unna skadelige miljøer og skaffe seg et sunt sosialt miljø."},
-        "Eser ve Detaylı Kaynak": {"tr": "Gençlik Rehberi", "en": "Guide for Youth", "no": "Ungdommens veiledning"},
-    },
-    {
-        "ID": 140,
-        "Konu": {"tr": "Kader Rızası", "en": "Contentment with Destiny (Qadar)", "no": "Tilfredshet med skjebnen (Qadar)"},
-        "Öğüt": {"tr": "Kaderin yazısına rıza göstermek kalbe huzur ve sekunet verir.", "en": "Showing contentment with the writing of destiny gives peace and tranquility to the heart."},
-        "no": "Å vise tilfredshet med skjebnens skrift gir hjertet fred og ro."},
-        "Örnek ve Tatbikat": {"tr": "Değiştirilemeyecek durumlar karşısında teslimiyet göstermek.", "en": "Showing submission in the face of situations that cannot be changed."},
-        "no": "Å vise underkastelse overfor situasjoner som ikke kan endres."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Altıncı Söz", "en": "The Twenty-Sixth Word", "no": "Det tjuesjette ordet"},
-    },
-    {
-        "ID": 141,
-        "Konu": {"tr": "Nefis Eğitimi", "en": "Training the Soul (Nefs)", "no": "Oppstramming av sjelen (Nefs)"},
-        "Öğüt": {"tr": "Nefsin arzularına her zaman boyun eğilmeyip zaman zaman muhalefet edilmelidir.", "en": "One should not always submit to the soul's desires, but oppose them from time to time."},
-        "no": "Man bør ikke alltid underlegge seg sjelens lyster, men motsette seg dem fra tid til annen."},
-        "Örnek ve Tatbikat": {"tr": "Nefsin hoşuna gitmeyen ama hayırlı olan işlere öncelik vermek.", "en": "Giving priority to works that the soul does not like but are auspicious."},
-        "no": "Å prioritere ting som sjelen ikke liker, men som er gode."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mesnevi-i Nuriye", "en": "Mesnevi-i Nuriye", "no": "Mesnevi-i Nuriye"},
-    },
-    {
-        "ID": 142,
-        "Konu": {"tr": "Gönül Almak", "en": "Winning Hearts", "no": "Å vinne hjerter"},
-        "Öğüt": {"tr": "İstemeden kırılan kalplerin telafisi için derhal gönül alınmalıdır.", "en": "Hearts unintentionally broken should be mended immediately to compensate."},
-        "no": "Hjerter som utilsiktet er knust, må repareres umiddelbart som kompensasjon."},
-        "Örnek ve Tatbikat": {"tr": "Kırgınlık yaşayan kişiye gidip tatlı dille tatlıya bağlamak.", "en": "Going to the person experiencing resentment and smoothing things over with sweet speech."},
-        "no": "Å gå til personen som opplever nag, og ordne opp med milde ord."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 143,
-        "Konu": {"tr": "Kur'an Okuma", "en": "Reading the Quran", "no": "Å lese Koranen"},
-        "Öğüt": {"tr": "Kur'an'ı sadece Arapçasından değil, manasını anlaşılmaya çalışılarak okumak gerekir.", "en": "It is necessary to read the Quran not only in Arabic, but trying to understand its meaning."},
-        "no": "Det er nødvendig å lese Koranen ikke bare på arabisk, men ved å prøve å forstå dens mening."},
-        "Örnek ve Tatbikat": {"tr": "Okunan ayetin Türkçe mealini ve tefsirine de göz atmak.", "en": "Glancing at the Turkish translation and exegesis of the recited verse."},
-        "no": "Å kaste et blikk på oversettelsen og eksegesen til verset som leses."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Beşinci Söz", "en": "The Twenty-Fifth Word", "no": "Det tjuefemte ordet"},
-    },
-    {
-        "ID": 144,
-        "Konu": {"tr": "Hizmet Şükrü", "en": "Gratitude for Service", "no": "Takknemlighet for tjenesten"},
-        "Öğüt": {"tr": "İman hizmetinde bulunmak büyük bir nimet olup, şükrü lüzumludur.", "en": "Being in the service of faith is a great blessing, and its gratitude is necessary."},
-        "no": "Å være i troens tjeneste er en stor velsignelse, og takknemlighet for det er nødvendig."},
-        "Örnek ve Tatbikat": {"tr": "Hizmet imkanı bulduğu için her an hamdetmek.", "en": "Praising Allah at every moment for finding the opportunity of service."},
-        "no": "Å prise Allah i hvert øyeblikk for å ha funnet muligheten til tjeneste."},
-        "Eser ve Detaylı Kaynak": {"tr": "Barla Lahikası", "en": "Barla Lahika", "no": "Barla Lahika"},
-    },
-    {
-        "ID": 145,
-        "Konu": {"tr": "Istigfar Bilinci", "en": "Consciousness of Seeking Forgiveness (Istighfar)", "no": "Bevissthet om å søke tilgivelse (Istighfar)"},
-        "Öğüt": {"tr": "Hataların farkına varıldığı anda istiğfara sarılmak en büyük kalkanıdır.", "en": "Clinging to seeking forgiveness the moment mistakes are realized is the greatest shield."},
-        "no": "Å klamre seg til tilgivelsessøken i det øyeblikket feil blir innseett, er det største skjoldet."},
-        "Örnek ve Tatbikat": {"tr": "Günah işleme meyli geldiğinde hemen istiğfar etmek.", "en": "Seeking forgiveness immediately when the inclination to commit a sin comes."},
-        "no": "Å søke tilgivelse umiddelbart når lysten til å begå en synd dukker opp."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Dokuzuncu Lem'a", "en": "The Twenty-Ninth Flash", "no": "Det tjueniende glimt"},
-    },
-    {
-        "ID": 146,
-        "Konu": {"tr": "Hizmet İstikameti", "en": "Straight Path of Service", "no": "Tjenestens rette vei"},
-        "Öğüt": {"tr": "İman hizmetinde sağa sola sapmadan istikamet üzere yürünmelidir.", "en": "One must walk on the straight path in the service of faith without deviating to the right or left."},
-        "no": "Man må gå på den rette veien i troens tjeneste uten å avvike til høyre eller venstre."},
-        "Örnek ve Tatbikat": {"tr": "Şahsi menfaatleri davanın önüne geçirmemek.", "en": "Not putting personal interests ahead of the cause."},
-        "no": "Å ikke sette personlige interesser foran saken."},
-        "Eser ve Detaylı Kaynak": {"tr": "Kastamonu Lahikası", "en": "Kastamonu Lahika", "no": "Kastamonu Lahika"},
-    },
-    {
-        "ID": 147,
-        "Konu": {"tr": "Zamanın Kıymeti", "en": "Value of Time", "no": "Tidens verdi"},
-        "Öğüt": {"tr": "Geçen her saniye ömür sermayesinden eksiltmektedir, boş geçirilmemelidir.", "en": "Every passing second subtracts from the capital of life and must not be spent in vain."},
-        "no": "Hvert sekund som går, trekker fra livskapitalen og må ikke sløses bort."},
-        "Örnek ve Tatbikat": {"tr": "Sosyal medyada veya boş işlerde saatleri harcamamak.", "en": "Not spending hours on social media or idle works."},
-        "no": "Å ikke bruke timer på sosiale medier eller unyttig arbeid."},
-        "Eser ve Detaylı Kaynak": {"tr": "Birinci Söz", "en": "The First Word", "no": "Det første ordet"},
-    },
-    {
-        "ID": 148,
-        "Konu": {"tr": "Manevi Yardımlaşma", "en": "Spiritual Mutual Assistance", "no": "Åndelig gjensidig hjelp"},
-        "Öğüt": {"tr": "Kardeşlerin dualarında birbirine yer vermesi manevi kuvveti artırır.", "en": "Brothers giving place to each other in their prayers increases spiritual strength."},
-        "no": "At brødre gir plass til hverandre i sine bønner, øker den åndelige styrken."},
-        "Örnek ve Tatbikat": {"tr": "Dostların isimlerini vererek dua halkaları oluşturmak.", "en": "Creating prayer circles by giving the names of friends."},
-        "no": "Å danne bønnesirkler ved å nevne venners navn."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 149,
-        "Konu": {"tr": "Ahlaki Olgunluk", "en": "Moral Maturity", "no": "Moralsk modenhet"},
-        "Öğüt": {"tr": "Gerçek olgunluk, zor anlarda bile ahlaktan ödün vermemektir.", "en": "True maturity is not compromising morality even in difficult moments."},
-        "no": "Sann modenhet er ikke å gå på kompromiss med moralen selv i vanskelige øyeblikk."},
-        "Örnek ve Tatbikat": {"tr": "Kriz anlarında sükuneti ve nezaketi korumak.", "en": "Preserving calm and politeness in moments of crisis."},
-        "no": "Å bevare roen og høfligheten i krisetider."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mesnevi-i Nuriye", "en": "Mesnevi-i Nuriye", "no": "Mesnevi-i Nuriye"},
-    },
-    {
-        "ID": 150,
-        "Konu": {"tr": "Tefekkür ve İbadet Dengesi", "en": "Balance of Reflection and Worship", "no": "Balanse mellom refleksjon og tilbedelse"},
-        "Öğüt": {"tr": "Bir saat tefekkür, bazen bir sene ibadetten hükmen daha hayırlı olabilir.", "en": "One hour of reflection can sometimes be decreed better than a year of worship."},
-        "no": "En times refleksjon kan noen ganger anses bedre enn et års tilbedelse."},
-        "Örnek ve Tatbikat": {"tr": "Gözünü açıp kainattaki harikaları bilerek ve düşünerek izlemek.", "en": "Opening eyes and watching the wonders in the universe knowingly and thoughtfully."},
-        "no": "Å åpne øynene og betrakte underverkene i universet med viten og omtanke."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Üçüncü Söz", "en": "The Twenty-Third Word", "no": "Det tjuetre ordet"},
-    },
-    {
-        "ID": 151,
-        "Konu": {"tr": "Namazın Şükür Olması", "en": "Prayer Being Gratitude", "no": "Bønnen som takknemlighet"},
-        "Öğüt": {"tr": "Namaz, bütün ni'metlere karşı en cami ve hakiki bir şükür şeklidir.", "en": "Prayer is the most comprehensive and true form of gratitude for all blessings."},
-        "no": "Bønnen er den mest omfattende og sanne formen for takknemlighet for alle velsignelser."},
-        "Örnek ve Tatbikat": {"tr": "Namazın rükû ve secdeleriyle ubudiyetin en derin şükrünü sunmak.", "en": "Presenting the deepest gratitude of worship through the bowing and prostrations of prayer."},
-        "no": "Å frembringe tilbedelsens dypeste takknemlighet gjennom bønnens bøying (ruku) og prostrasjoner (sujud)."},
-        "Eser ve Detaylı Kaynak": {"tr": "Dokuzuncu Söz", "en": "The Ninth Word", "no": "Det niende ordet"},
-    },
-    {
-        "ID": 152,
-        "Konu": {"tr": "İhlası Kıracak Haller", "en": "Conditions Breaking Sincerity", "no": "Tilstander som bryter oppriktigheten"},
-        "Öğüt": {"tr": "Riyakarlık, menfaat arzusu ve başkalarının beğenisi ihlası tamamen zedeler.", "en": "Hypocrisy, desire for benefit, and the approval of others completely damage sincerity."},
-        "no": "Hykleri, ønske om fordeler og andres godkjennelse skader oppriktigheten fullstendig."},
-        "Örnek ve Tatbikat": {"tr": "Amelleri sırf Allah rızası için yapıp başkalarının övgüsünü önemsememek.", "en": "Performing deeds purely for Allah's pleasure and not caring about the praise of others."},
-        "no": "Å utføre gjerninger utelukkende for Allahs velbehag og ikke bry seg om andres ros."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz (İhlas Risalesi)", "en": "The Twenty-Second Word (Treatise on Sincerity)", "no": "Det tjueandre ordet (Avhandling om oppriktighet)"},
-    },
-    {
-        "ID": 153,
-        "Konu": {"tr": "Ümitsizlikten Sakınma", "en": "Avoiding Despair", "no": "Å unngå fortvilelse"},
-        "Öğüt": {"tr": "Rahmet-i ilahiyeden asla ümit kesilmemeli, her an rahmet kapısı çalınmalıdır.", "en": "Hope from Allah's mercy must never be cut off; the door of mercy should be knocked at every moment."},
-        "no": "Man må aldri miste håpet om Allahs barmhjertighet; barmhjertighetens dør bør bankes på i hvert øyeblikk."},
-        "Örnek ve Tatbikat": {"tr": "En zor ve çıkmaz durumlarda dahi 'La taknetu' sırrıyla umutla dua etmek.", "en": "Praying with hope using the secret of 'Do not despair' even in the hardest and dead-end situations."},
-        "no": "Å be med håp ved hjelp av hemmeligheten bak 'Fortvil ikke' selv i de hardest og mest håpløse situasjoner."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mesnevi-i Nuriye / Barla Lahikası", "en": "Mesnevi-i Nuriye / Barla Lahika", "no": "Mesnevi-i Nuriye / Barla Lahika"},
-    },
-    {
-        "ID": 154,
-        "Konu": {"tr": "Kardeşliğin Tesisi", "en": "Establishment of Brotherhood", "no": "Etablering av brorskap"},
-        "Öğüt": {"tr": "Müminler arasındaki kırgınlıklar giderilmeli, kardeşlik bağı daima taze tutulmalıdır.", "en": "Resentments among believers should be resolved, and the bond of brotherhood kept fresh at all times."},
-        "no": "Nag blant troende må bilagt, og brorskapets bånd må holdes friskt til enhver tid."},
-        "Örnek ve Tatbikat": {"tr": "Aralarında küslük olan iki kardeşin barışmasına vesile olmak.", "en": "Acting as a means for reconciliation between two estranged brothers."},
-        "no": "Å fungere som et middel til forsoning mellom to uvennlige brødre."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a / Emirdağ Lahikası", "en": "The Twenty-Second Flash / Emirdağ Lahika", "no": "Det tjueandre glimt / Emirdağ Lahika"},
-    },
-    {
-        "ID": 155,
-        "Konu": {"tr": "Nefsin Terbiyesi", "en": "Discipline of the Ego", "no": "Oppstramming av egoet"},
-        "Öğüt": {"tr": "Nefis firavun tabiatlıdır; onu başıboş bırakmayıp daimi terbiye altında tutmak gerekir.", "en": "The ego has a pharaonic nature; it must not be left loose and must be kept under constant discipline."},
-        "no": "Egoet har en faraonisk natur; det må ikke overlates til seg selv og må holdes under konstant disiplin."},
-        "Örnek ve Tatbikat": {"tr": "Nefsin her istediğini vermeyip bazen mahrum bırakmak.", "en": "Not giving the ego everything it wants and depriving it sometimes."},
-        "no": "Å ikke gi egoet alt det vil, og av og til frata det det ønsker."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mesnevi-i Nuriye", "en": "Mesnevi-i Nuriye", "no": "Mesnevi-i Nuriye"},
-    },
-    {
-        "ID": 156,
-        "Konu": {"tr": "Kardeşlik Hukuku", "en": "Law of Brotherhood", "no": "Broderskapets rett"},
-        "Öğüt": {"tr": "Mümin kardeşinin kusurunu affetmek ve aleyhinde bulunmamak kardeşlik hukukunun gereğidir.", "en": "Forgiving the fault of a believing brother and not speaking against him is the requirement of the law of brotherhood."},
-        "no": "Å tilgi en troende brors feil og ikke snakke mot ham er et krav i broderskapets lov."},
-        "Örnek ve Tatbikat": {"tr": "Hatalı bir dostu dışlamak yerine kazanmaya çalışmak.", "en": "Trying to win over a faulty friend instead of ostracizing him."},
-        "no": "Å prøve å vinne over en feilaktig venn i stedet for å utstøte ham."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a", "en": "The Twenty-Second Flash", "no": "Det tjueandre glimt"},
-    },
-    {
-        "ID": 157,
-        "Konu": {"tr": "Zararlı Alışkanlıklardan Kurtulma", "en": "Quitting Bad Habits", "no": "Å kvitte seg med skadelige vaner"},
-        "Öğüt": {"tr": "İrade kuvvetiyle her türlü zararlı alışkanlıktan birden ve katiyetle vazgeçilmelidir.", "en": "One must quit all kinds of bad habits suddenly and decisively with the power of willpower."},
-        "no": "Man må slutte med alle slags skadelige vaner plutselig og bestemt ved hjelp av viljestyrke."},
-        "Örnek ve Tatbikat": {"tr": "Zararlı bağımlılıklara 'Bismillah' diyerek son noktayı koymak.", "en": "Putting an end to harmful addictions by saying 'Bismillah.'"},
-        "no": "Å sette en stopper for skadelige avhengigheter ved å si 'Bismillah.'"},
-        "Eser ve Detaylı Kaynak": {"tr": "Gençlik Rehberi", "en": "Guide for Youth", "no": "Ungdommens veiledning"},
-    },
-    {
-        "ID": 158,
-        "Konu": {"tr": "Hizmette İhlasın Sırrı", "en": "Secret of Sincerity in Service", "no": "Hemmeligheten bak oppriktighet i tjenesten"},
-        "Öğüt": {"tr": "Hizmette başkasının takdirini beklemek ihlası zedeler; yalnız rıza-i ilahi gözetilmelidir.", "en": "Expecting the praise of others in service damages sincerity; solely Allah's pleasure must be observed."},
-        "no": "Å forvente andres ros i tjenesten skader oppriktigheten; utelukkende Allahs velbehag må etterstrebes."},
-        "Örnek ve Tatbikat": {"tr": "Yapılan hizmetlerin gizli kalmasına özen göstermek.", "en": "Paying attention to keeping performed services secret."},
-        "no": "Å være nøye med å holde utførte tjenester hemmelige."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz (İhlas Risalesi)", "en": "The Twenty-Second Word (Treatise on Sincerity)", "no": "Det tjueandre ordet (Avhandling om oppriktighet)"},
-    },
-    {
-        "ID": 159,
-        "Konu": {"tr": "Manevi Zenginlik", "en": "Spiritual Wealth", "no": "Åndelig rikdom"},
-        "Öğüt": {"tr": "Hakiki zenginlik mal çokluğu değil, kalbin kanaat ve zenginliğidir.", "en": "True wealth is not the abundance of property, but the contentment and richness of the heart."},
-        "no": "Sann rikdom er ikke overflod av eiendom, men hjertets nøysomhet og rikdom."},
-        "Örnek ve Tatbikat": {"tr": "Azla yetinip gönül tokluğuyla yaşamak.", "en": "Living with contentment of the heart by sufficing with little."},
-        "no": "Å leve med et fornøyd hjerte ved å nøye seg med litt."},
-        "Eser ve Detaylı Kaynak": {"tr": "Ondokuzuncu Lem'a", "en": "The Nineteenth Flash", "no": "Det nittende glimt"},
-    },
-    {
-        "ID": 160,
-        "Konu": {"tr": "Tefekkürün İnsana Kazandırdığı", "en": "What Reflection Brings to Man", "no": "Hva refleksjon gir mennesket"},
-        "Öğüt": {"tr": "Tefekkür, insanı acziyetini bilip Yaratıcısına sığınmaya götüren en kısa yoldur.", "en": "Reflection is the shortest path that leads man to know his helplessness and take refuge in his Creator."},
-        "no": "Refleksjon er den korteste veien som fører mennesket til å erkjenne sin hjelpeløshet og søke tilflukt hos sin Skaper."},
-        "Örnek ve Tatbikat": {"tr": "Göklerin ve yerin yaratılışındaki mucizeleri inceleyip hayran olmak.", "en": "Examining and marveling at the miracles in the creation of heavens and earth."},
-        "no": "Å undersøke og undre seg over miraklene i skapelsen av himmel og jord."},
-        "Eser ve Detaylı Kaynak": {"tr": "Otuz Üçüncü Söz", "en": "The Thirty-Third Word", "no": "Det trettitredje ordet"},
-    },
-    {
-        "ID": 161,
-        "Konu": {"tr": "Sabırla Bekleme", "en": "Waiting with Patience", "no": "Å vente med tålmodighet"},
-        "Öğüt": {"tr": "Neticesi görünmeyen işlerde aciliyet göstermeyip sabırla beklemek gerekir.", "en": "One must not show urgency in matters whose outcome is not visible and wait with patience."},
-        "no": "Man må ikke vise hastverk i saker der utfallet ikke er synlig, og vente med tålmodighet."},
-        "Örnek ve Tatbikat": {"tr": "Ekilen tohumun süresinden önce yeşermesini istememek gibi olayların vaktini beklemek.", "en": "Waiting for the right time for events, just like not wanting a planted seed to sprout before its time."},
-        "no": "Å vente på riktig tid for hendelser, akkurat som å ikke ønske at et plantet frø skal spire før tiden."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Birinci Mektup", "en": "The Twenty-First Letter", "no": "Det tjueførste brevet"},
-    },
-    {
-        "ID": 162,
-        "Konu": {"tr": "İbadetin Kalitesi", "en": "Quality of Worship", "no": "Tilbedelsens kvalitet"},
-        "Öğüt": {"tr": "İbadetlerin çokluğundan ziyade kalitesi, yani ihlas ve şuuru önemlidir.", "en": "Rather than the quantity of acts of worship, their quality—meaning sincerity and consciousness—is important."},
-        "no": "Snarere enn mengden av tilbedelseshandlinger er deres kvalitet – det vil si oppriktighet og bevissthet – det viktige."},
-        "Örnek ve Tatbikat": {"tr": "Az ama huşu ve huzur içinde kılınan namazı tercih etmek.", "en": "Preferring a prayer performed with little quantity but with awe and peace."},
-        "no": "Å foretrekke en bønn utført med mindre mengde, men med ærefrykt og ro."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz", "en": "The Twenty-Second Word", "no": "Det tjueandre ordet"},
-    },
-    {
-        "ID": 163,
-        "Konu": {"tr": "İhlası Kıracak Tecelliler", "en": "Manifestations Breaking Sincerity", "no": "Manifestasjoner som bryter oppriktigheten"},
-        "Öğüt": {"tr": "Amellerde 'beni görsünler, beni övsünler' hissi ihlası zehirleyen en büyük unsurdur.", "en": "The feeling of 'let them see me, let them praise me' in deeds is the greatest element poisoning sincerity."},
-        "no": "Følelsen av 'la dem se meg, la dem rose meg' i gjerninger er det største elementet som forgifter oppriktigheten."},
-        "Örnek ve Tatbikat": {"tr": "Gizli yapılan ibadetleri gizli tutmaya azami özen göstermek.", "en": "Showing maximum care to keep hidden acts of worship secret."},
-        "no": "Å vise maksimal omsorg for å holde skjulte tilbedelseshandlinger hemmelige."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz (İhlas Risalesi)", "en": "The Twenty-Second Word (Treatise on Sincerity)", "no": "Det tjueandre ordet (Avhandling om oppriktighet)"},
-    },
-    {
-        "ID": 164,
-        "Konu": {"tr": "İbadetin Devamı ve İstikrarı", "en": "Continuity and Stability of Worship", "no": "Tilbedelsens kontinuitet og stabilitet"},
-        "Öğüt": {"tr": "İbadette az da olsa mütemadi ve devamlı olanı, kesintili olandan evlâdır.", "en": "Continuous and permanent worship, even if little, is preferable to intermittent worship."},
-        "no": "Kontinuerlig og permanent tilbedelse, selv om den er liten, er å foretrekke fremfor avbrutt tilbedelse."},
-        "Örnek ve Tatbikat": {"tr": "Her gün düzenli olarak belli bir miktar vird veya okuma yapmak.", "en": "Performing a regular amount of litany (vird) or reading every day."},
-        "no": "Å utføre en fast mengde litani (vird) eller lesning regelmessig hver dag."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 165,
-        "Konu": {"tr": "Manevi Borçlar ve İstiğfar", "en": "Spiritual Debts and Seeking Forgiveness", "no": "Åndelig gjeld og det å søke tilgivelse"},
-        "Öğüt": {"tr": "Günahlar manevi birer borçtur; istiğfar ile bu borçlar derhal ödenmelidir.", "en": "Sins are spiritual debts; these debts must be paid immediately with seeking forgiveness."},
-        "no": "Synder er åndelig gjeld; denne gjelden må betales umiddelbart ved å søke tilgivelse."},
-        "Örnek ve Tatbikat": {"tr": "İşlenen bir günahın ardından hemen tövbe ve istiğfar etmek.", "en": "Repenting and seeking forgiveness immediately after a sin is committed."},
-        "no": "Å omvende seg og søke tilgivelse umiddelbart etter at en synd er begått."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Dokuzuncu Lem'a", "en": "The Twenty-Ninth Flash", "no": "Det tjueniende glimt"},
-    },
-    {
-        "ID": 166,
-        "Konu": {"tr": "Kardeşlerin Kusurunu Örtme Sırrı", "en": "Secret of Concealing Brothers' Faults", "no": "Hemmeligheten ved å skjule brødrenes feil"},
-        "Öğüt": {"tr": "Mümin kardeşinin kusurunu açığa çıkarmak değil, setretmek (örtmek) İslam ahlakıdır.", "en": "It is Islamic morality to conceal (setr) rather than expose the fault of a believing brother."},
-        "no": "Det er islamsk moral å skjule (setr) fremfor å avsløre en troende brors feil."},
-        "Örnek ve Tatbikat": {"tr": "Bir dostun hatasını gördüğünde kimseye söylemeyip sadece ona nasihat etmek.", "en": "Not telling anyone when seeing a friend's mistake and only advising him."},
-        "no": "Å ikke fortelle det til noen når man ser en venns feil, og bare gi ham råd."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a", "en": "The Twenty-Second Flash", "no": "Det tjueandre glimt"},
-    },
-    {
-        "ID": 167,
-        "Konu": {"tr": "Rızıkta Kanaatin Önemi", "en": "Importance of Contentment in Sustenance", "no": "Viktigheten av nøysomhet i livsoppholdet"},
-        "Öğüt": {"tr": "Rızıkta kanaat eden insan daima tok ve huzurludur, tamahkar olan ise aç kalır.", "en": "A person who is content with sustenance is always full and peaceful; the greedy one remains hungry."},
-        "no": "En person som er nøysom med sitt livsopphold, er alltid mett og fredfulle; den grådige forblir sulten."},
-        "Örnek ve Tatbikat": {"tr": "Elindeki imkanlarla yetinip fazlası için hırs göstermemek.", "en": "Sufficing with the means at hand and not showing ambition for more."},
-        "no": "Å nøye seg med de midlene man har for hånden, og ikke vise begjær etter mer."},
-        "Eser ve Detaylı Kaynak": {"tr": "Ondokuzuncu Lem'a", "en": "The Nineteenth Flash", "no": "Det nittende glimt"},
-    },
-    {
-        "ID": 168,
-        "Konu": {"tr": "Hizmette Nefsi Aradan Çıkarma", "en": "Removing the Ego from Service", "no": "Å fjerne egoet fra tjenesten"},
-        "Öğüt": {"tr": "İman hizmetinde 'ben' davası güdülmemeli, nefis ve enaniyet tamamen sıfırlanmalıdır.", "en": "The claim of 'I' must not be pursued in the service of faith, and ego and self-centeredness must be completely zeroed out."},
-        "no": "Kravet om 'jeg' må ikke forfølges i troens tjeneste, og ego og selvsentrerthet må nullstilles fullstendig."},
-        "Örnek ve Tatbikat": {"tr": "Yapılan güzel işlerde şahsını öne çıkarmayıp başarıyı cemaate vermek.", "en": "Not bringing oneself forward in good works done and attributing success to the community."},
-        "no": "Å ikke fremheve seg selv i gode gjerninger, men tilskrive suksessen til fellesskapet."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Söz (İhlas Risalesi)", "en": "The Twenty-Second Word (Treatise on Sincerity)", "no": "Det tjueandre ordet (Avhandling om oppriktighet)"},
-    },
-    {
-        "ID": 169,
-        "Konu": {"tr": "Sabır ve Şükrün Birlikteliği", "en": "Association of Patience and Gratitude", "no": "Kombinasjonen av tålmodighet og takknemlighet"},
-        "Öğüt": {"tr": "Mümin sabır ve şükür kanatlarıyla makamları aşar; biri musibette, diğeri nimette lazımdır.", "en": "A believer surpasses stations with the wings of patience and gratitude; one is needed in calamity, the other in blessing."},
-        "no": "En troende overskrider nivåer med tålmodighetens og takknemlighetens vinger; den ene trengs i ulykke, den andre i velsignelse."},
-        "Örnek ve Tatbikat": {"tr": "Nimet geldiğinde şükretmek, musibet geldiğinde ise sabretmek.", "en": "Giving thanks when a blessing comes, and being patient when a calamity comes."},
-        "no": "Å takke når en velsignelse kommer, og være tålmodig når en ulykke rammer."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Birinci Mektup / İkinci Lem'a", "en": "The Twenty-First Letter / The Second Flash", "no": "Det tjueførste brevet / Det andre glimt"},
-    },
-    {
-        "ID": 170,
-        "Konu": {"tr": "Hayatın Hakiki Lezzeti", "en": "True Pleasure of Life", "no": "Livets sanne glede"},
-        "Öğüt": {"tr": "Hayatın hakiki lezzeti iman ve ibadettedir; gafletle sürülen hayat acı bir hüsrandır.", "en": "The true pleasure of life is in faith and worship; a life lived in heedlessness is a bitter disappointment."},
-        "no": "Livets sanne glede finnes i tro og tilbedelse; et liv levd i uaktsomhet er en bitter skuffelse."},
-        "Örnek ve Tatbikat": {"tr": "Dünyevi zevkleri ibadet huzuru ve manevi neşeyle taçlandırmak.", "en": "Crowning worldly pleasures with the peace of worship and spiritual joy."},
-        "no": "Å krone verdslige lyster med tilbedelsens ro og åndelig glede."},
-        "Eser ve Detaylı Kaynak": {"tr": "Birinci Söz / Üçüncü Söz", "en": "The First Word / The Third Word", "no": "Det første ordet / Det tredje ordet"},
-    },
-    {
-        "ID": 171,
-        "Konu": {"tr": "Müminlerin Kusurlarını Affetme Düsturu", "en": "Principle of Forgiving Believers' Faults", "no": "Prinsippet om å tilgi de troendes feil"},
-        "Öğüt": {"tr": "Müminlerin kusurları affedilmeli, aradaki husumetler derhal muhabbete tebdil edilmelidir.", "en": "The faults of believers must be forgiven, and hostilities between them immediately transformed into love."},
-        "no": "De troendes feil må tilgis, og fiendskap dem imellom må umiddelbart forvandles til kjærlighet."},
-        "Örnek ve Tatbikat": {"tr": "Bir Müslümanın hatası yüzünden ona küsmek yerine kucak açmak.", "en": "Embracing a Muslim instead of being estranged from him due to his mistake."},
-        "no": "Å omfavne en muslim i stedet for å ta avstand fra ham på grunn av hans feil."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a", "en": "The Twenty-Second Flash", "no": "Det tjueandre glimt"},
-    },
-    {
-        "ID": 172,
-        "Konu": {"tr": "Gençlik Nimetinin Şükrü", "en": "Gratitude for the Blessing of Youth", "no": "Takknemlighet for ungdommens velsignelse"},
-        "Öğüt": {"tr": "Gençlik nimeti ibadetle şükredilmezse, ahirette büyük bir pişmanlığa döner.", "en": "If the blessing of youth is not thanked through worship, it turns into a great regret in the hereafter."},
-        "no": "Hvis det ikke vises takknemlighet for ungdommens velsignelse gjennom tilbedelse, snur det til en dyp angre i det hinsidige."},
-        "Örnek ve Tatbikat": {"tr": "Dinçlik çağını ilim ve hayırlı ameller yolunda harcamak.", "en": "Spending the age of vigor on the path of knowledge and righteous deeds."},
-        "no": "Å bruke ungdomstiden på kunnskapens og de gode gjerningenes vei."},
-        "Eser ve Detaylı Kaynak": {"tr": "Gençlik Rehberi", "en": "Guide for Youth", "no": "Ungdommens veiledning"},
-    },
-    {
-        "ID": 173,
-        "Konu": {"tr": "İhtiyarlık Döneminin Hikmeti", "en": "Wisdom of the Old Age Period", "no": "Visdommen bak alderdommen"},
-        "Öğüt": {"tr": "İhtiyarlık, dünya işlerinden el çekip tamamen ahirete yönelmek için ilahi bir fırsattır.", "en": "Old age is a divine opportunity to withdraw from worldly affairs and turn completely to the hereafter."},
-        "no": "Alderdommen er en guddommelig mulighet til å trekke seg fra verdslige anliggender og vende seg fullstendig mot det hinsidige."},
-        "Örnek ve Tatbikat": {"tr": "Yaşlılık günlerini Kur'an tahlili ve ibadetle huzurlu geçirmek.", "en": "Spending old age days peacefully with Quranic analysis and worship."},
-        "no": "Å tilbringe alderdommens dager i fred med Koranen og tilbedelse."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Altıncı Lem'a (İhtiyarlar Risalesi)", "en": "The Twenty-Sixth Flash (Treatise on the Elderly)", "no": "Det tjuesjette glimt (Avhandling om de eldre)"},
-    },
-    {
-        "ID": 174,
-        "Konu": {"tr": "Akrabaya İyilik ve Sıla-i Rahim", "en": "Kindness to Relatives and Ties of Kinship", "no": "Godhet mot slektninger og familiebånd"},
-        "Öğüt": {"tr": "Akrabalık hakları korunmalı, sıla-i rahim ile ömrün bereketi artırılmalıdır.", "en": "Kinship rights must be protected, and the blessing of life increased through ties of kinship."},
-        "no": "Slektsrettighetene må beskyttes, og livets velsignelse må økes gjennom familiebånd (sila-i rahim)."},
-        "Örnek ve Tatbikat": {"tr": "Uzakta olan veya muhtaç olan akrabaları ziyaret edip gözetmek.", "en": "Visiting and looking after distant or needy relatives."},
-        "no": "Å besøke og ta seg av fjerne eller trengende slektninger."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 175,
-        "Konu": {"tr": "Komşu Haklarına Riayet Etmek", "en": "Observing Neighbor's Rights", "no": "Å respektere naborettigheter"},
-        "Öğüt": {"tr": "Komşulara karşı ev içi seslerden gıdaya kadar her hususta nazik olunmalıdır.", "en": "One must be polite toward neighbors in every aspect from indoor sounds to food."},
-        "no": "Man må være høflig mot naboer i alle aspekter, fra innendørs lyder til mat."},
-        "Örnek ve Tatbikat": {"tr": "Geç saatlerde komşuları rahatsız edecek gürültülerden kaçınmak.", "en": "Avoiding noises that would disturb neighbors late at night."},
-        "no": "Å unngå støy sent på kvelden som kan forstyrre naboene."},
-        "Eser ve Detaylı Kaynak": {"tr": "Lem'alar", "en": "The Flashes", "no": "Glansene"},
-    },
-    {
-        "ID": 176,
-        "Konu": {"tr": "Yetimleri Koruma ve Gözetme", "en": "Protecting and Looking After Orphans", "no": "Beskyttelse og omsorg for foreldreløse"},
-        "Öğüt": {"tr": "Yetimlerin hakkına el uzatılmamalı, başları şefkatle okşanıp korunmalıdır.", "en": "The rights of orphans must not be violated; their heads must be stroked with compassion and protected."},
-        "no": "De foreldreløses rettigheter må ikke krenkes; hodene deres må klappes med medfølelse og beskyttes."},
-        "Örnek ve Tatbikat": {"tr": "Yetim çocukların ihtiyaçlarını gidermek için maddi ve manevi destek olmak.", "en": "Being a material and spiritual support to meet the needs of orphan children."},
-        "no": "Å være en materiell og åndelig støtte for å dekke behovene til foreldreløse barn."},
-        "Eser ve Detaylı Kaynak": {"tr": "İşaratü'l-İ'caz", "en": "Signs of Miraculousness", "no": "İşaratü'l-İ'caz"},
-    },
-    {
-        "ID": 177,
-        "Konu": {"tr": "Zekat Verirken İhlası Korumak", "en": "Preserving Sincerity While Giving Zakat", "no": "Bevaring av oppriktighet ved utdeling av Zakat"},
-        "Öğüt": {"tr": "Zekat ve sadakalar başa kakılmadan, gizli ve sadece Allah rızası için verilmelidir.", "en": "Zakat and charity must be given secretly and solely for Allah's pleasure, without boasting."},
-        "no": "Zakat og veldedighet må gis i hemmelighet og utelukkende for Allahs velbehag, uten å skryte av det."},
-        "Örnek ve Tatbikat": {"tr": "Muhtaca yardım ederken kimsenin haberi olmadan setr-i hal etmek.", "en": "Concealing the state without anyone knowing when helping the needy."},
-        "no": "Å skjule sin tilstand uten at noen vet det når man hjelper de trengende."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat / İhlas Risalesi", "en": "Letters / Treatise on Sincerity", "no": "Brev / Avhandling om oppriktighet"},
-    },
-    {
-        "ID": 178,
-        "Konu": {"tr": "Borç Ödemede Titizlik", "en": "Meticulousness in Paying Debts", "no": "Nøye oppfølging ved nedbetaling av gjeld"},
-        "Öğüt": {"tr": "Borçlar imkan elverdiği ilk anda ödenmeli, alacaklı mağdur edilmemelidir.", "en": "Debts must be paid at the first opportunity when means permit, and the creditor must not be victimized."},
-        "no": "Gjeld må betales ved første anledning når midlene tillater det, og kreditor må ikke gjøres til offer."},
-        "Örnek ve Tatbikat": {"tr": "Vadesi gelen borcu aksatmadan vaktinde kapatmak.", "en": "Closing the due debt on time without delay."},
-        "no": "Å betale forfalt gjeld i tide uten forsinkelse."},
-        "Eser ve Detaylı Kaynak": {"tr": "Ondokuzuncu Lem'a", "en": "The Nineteenth Flash", "no": "Det nittende glimt"},
-    },
-    {
-        "ID": 179,
-        "Konu": {"tr": "Alışverişte Dürüstlük Kuralı", "en": "Rule of Honesty in Shopping", "no": "Regelen om ærlighet i handel"},
-        "Öğüt": {"tr": "Ticari ilişkilerde ve tartıda hileden kesinlikle kaçınılmalıdır.", "en": "Cheating in commercial relations and weighing must be strictly avoided."},
-        "no": "Snyting i forretningsforbindelser og vekting må unngås strengt."},
-        "Örnek ve Tatbikat": {"tr": "Müşteriye malın kusurunu açıkça söylemek.", "en": "Clearly stating the defect of the goods, if any, to the customer."},
-        "no": "Å oppgi varens feil tydelig til kunden hvis det finnes noen."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 180,
-        "Konu": {"tr": "Faizden Sakınma Bilinci", "en": "Consciousness of Avoiding Interest (Riba)", "no": "Bevissthet om å unngå rente (Riba)"},
-        "Öğüt": {"tr": "Faiz toplumsal huzuru ve iktisadi adaleti bozan büyük bir haramdır.", "en": "Interest is a major haram that disrupts social peace and economic justice."},
-        "no": "Rente er en stor synd (haram) som forstyrrer samfunnsfreden og den økonomiske rettferdigheten."},
-        "Örnek ve Tatbikat": {"tr": "Faizli muamelelerden ve borçlanmalardan uzak durmak.", "en": "Staying away from interest-bearing transactions and borrowings."},
-        "no": "Å holde seg unna rentetransaksjoner og rentegjeld."},
-        "Eser ve Detaylı Kaynak": {"tr": "Lem'alar / Sözler", "en": "The Flashes / The Words", "no": "Glansene / Ordene"},
-    },
-    {
-        "ID": 181,
-        "Konu": {"tr": "Rızkın Kefili Halik-ı Rahim'dir", "en": "The Guarantor of Sustenance is the Merciful Creator", "no": "Garantisten for livsoppholdet er den Barmhjertige Skaperen"},
-        "Öğüt": {"tr": "Rızık konusunda endişe etmek, rızkı veren Allah'ın rahmetine ittiham sayılır.", "en": "Worrying about sustenance is considered an accusation against the mercy of Allah, the Provider."},
-        "no": "Å bekymre seg for livsoppholdet anses som en beskyldning mot barmhjertigheten til Allah, Forsørgeren."},
-        "Örnek ve Tatbikat": {"tr": "Tedbiri alıp neticeyi Hakikatin sahibine bırakarak iç huzur bulmak.", "en": "Finding inner peace by taking precautions and leaving the result to the Owner of Truth."},
-        "no": "Å finne indre ro ved å ta forholdsregler og overlate resultatet til Sannhetens Eier."},
-        "Eser ve Detaylı Kaynak": {"tr": "Otuz İkinci Söz", "en": "The Thirty-Second Word", "no": "Det trettienne ordet"},
-    },
-    {
-        "ID": 182,
-        "Konu": {"tr": "Çalışmanın İbadet Hükmünde Olması", "en": "Work Being in the Decree of Worship", "no": "Arbeid som har status som tilbedelse"},
-        "Öğüt": {"tr": "Meşru dairede kazanmak için yapılan çalışmalar niyetle ibadete döner.", "en": "Work done to earn within the legitimate sphere turns into worship with intention."},
-        "no": "Arbeid utført for å tjene til livets opphold innenfor den lovlige sfæren, blir til tilbedelse med rett hensikt."},
-        "Örnek ve Tatbikat": {"tr": "İşe giderken 'Bismillah' diyerek aile rızkını helal yoldan kazanmayı niyet etmek.", "en": "Intending to earn family sustenance through lawful ways by saying 'Bismillah' while going to work."},
-        "no": "Å ha som hensikt å tjene familiens livsopphold på lovlig vis ved å si 'Bismillah' når man går på arbeid."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Dördüncü Söz", "en": "The Twenty-Fourth Word", "no": "Det tjuefjerde ordet"},
-    },
-    {
-        "ID": 183,
-        "Konu": {"tr": "Tembel İnsanın Durumu", "en": "The State of a Lazy Person", "no": "Den latte personens situasjon"},
-        "Öğüt": {"tr": "Tembel insan hem dünyada sefil olur hem de ahirette mesuliyetten kurtulamaz.", "en": "A lazy person is both miserable in the world and cannot escape responsibility in the hereafter."},
-        "no": "En lat person er både elendig i verden og kan ikke unnslippe ansvaret i det hinsidige."},
-        "Örnek ve Tatbikat": {"tr": "Üşengeçliği bırakıp günlük vazifeleri zamanında yerine getirmek.", "en": "Leaving laziness and fulfilling daily duties on time."},
-        "no": "Å legge vekk tregheten og oppfylle de daglige pliktene i tide."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mesnevi-i Nuriye", "en": "Mesnevi-i Nuriye", "no": "Mesnevi-i Nuriye"},
-    },
-    {
-        "ID": 184,
-        "Konu": {"tr": "Zaman Sermayesini Değerlendirme", "en": "Evaluating the Capital of Time", "no": "Å utnytte tidens kapital"},
-        "Öğüt": {"tr": "Ömür sermayesi hızla tükenmektedir; her anı hayırlı işlerle doldurmak gerekir.", "en": "The capital of life is rapidly running out; every moment must be filled with auspicious deeds."},
-        "no": "Livets kapital tar raskt slutt; hvert øyeblikk må fylles med gode gjerninger."},
-        "Örnek ve Tatbikat": {"tr": "Günlük vakti planlayıp hayırlı ve faydalı işlere öncelik tanımak.", "en": "Planning daily time and giving priority to auspicious and useful works."},
-        "no": "Å planlegge den daglige tiden og prioritere gode og nyttige oppgaver."},
-        "Eser ve Detaylı Kaynak": {"tr": "Birinci Söz", "en": "The First Word", "no": "Det første ordet"},
-    },
-    {
-        "ID": 185,
-        "Konu": {"tr": "İstişare ile İş Yapma Düsturu", "en": "Principle of Doing Business with Consultation", "no": "Prinsippet om å handle gjennom rådslagning"},
-        "Öğüt": {"tr": "İstişare eden pişman olmaz; büyük işler ehl-i meşveretle çözülmelidir.", "en": "He who consults does not regret; major matters must be solved with people of consultation."},
-        "no": "Den som rådslår, angrer ikke; store saker må løses med folk som har greie på rådslagning."},
-        "Örnek ve Tatbikat": {"tr": "Kritik kararlarda aile büyüklerine veya işin uzmanlarına danışmak.", "en": "Consulting family elders or experts in critical decisions."},
-        "no": "Å rådføre seg med familiens eldre eller eksperter i kritiske beslutninger."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 186,
-        "Konu": {"tr": "Meşveret Kararına Sadakat", "en": "Loyalty to Consultation Decision", "no": "Lojalitet mot rådets beslutning"},
-        "Öğüt": {"tr": "Ortak alınan kararlara uymak cemaat ruhunu ve başarıyı artırır.", "en": "Complying with jointly made decisions increases community spirit and success."},
-        "no": "Å etterleve felles beslutninger øker fellesskapsånden og suksessen."},
-        "Örnek ve Tatbikat": {"tr": "Alınan kararda şahsi görüşü farklı olsa bile cemaat kararına uymak.", "en": "Complying with the community decision even if one's personal view is different in the decision made."},
-        "no": "Å rette seg etter fellesskapets beslutning selv om ens personlige syn er annerledes."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 187,
-        "Konu": {"tr": "Hata Karşısında Dönüş Hızı", "en": "Speed of Returning in the Face of Mistake", "no": "Hurtighet til å vende om ved feil"},
-        "Öğüt": {"tr": "Hatalı olduğunu anladığı an inat etmeyip doğrusuna dönmek erdemdir.", "en": "It is a virtue not to be stubborn and to return to the right the moment one realizes they are at fault."},
-        "no": "Det er en dygd å ikke være sta og vende tilbake til det rette i det øyeblikket man innser at man tar feil."},
-        "Örnek ve Tatbikat": {"tr": "Yanlış bir fikir savunduğu anlaşıldığında 'haklısınız' diyebilmek.", "en": "Being able to say 'you are right' when it is understood that a wrong idea was defended."},
-        "no": "Å kunne si 'du har rett' når det forstås at man har forsvart en feilaktig idé."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 188,
-        "Konu": {"tr": "İstikamet Üzere Yaşamak", "en": "Living on the Straight Path (Istiqamah)", "no": "Å leve på den rette vei (Istiqamah)"},
-        "Öğüt": {"tr": "İstikamet, ehl-i imanın en büyük kerametidir; çizgiden sapmamak gerekir.", "en": "Istiqamah is the greatest miracle of believers; one must not deviate from the line."},
-        "no": "Istiqamah er de troendes største mirakel; man må ikke avvike fra linjen."},
-        "Örnek ve Tatbikat": {"tr": "Hayatın her aşamasında Kur'an ve sünnet ölçüleriyle hareket etmek.", "en": "Acting with the measures of the Quran and Sunnah at every stage of life."},
-        "no": "Å handle i tråd med Koranens og Sunnahs mål på alle stadier i livet."},
-        "Eser ve Detaylı Kaynak": {"tr": "Birinci Lem'a", "en": "The First Flash", "no": "Det første glimt"},
-    },
-    {
-        "ID": 189,
-        "Konu": {"tr": "Mümin Hakkında Hüsn-ü Zan Etmek", "en": "Having a Good Opinion About a Believer", "no": "Å ha gode tanker om en troende"},
-        "Öğüt": {"tr": "Müminlerin davranışlarında kötü niyet aramak yerine iyi niyet aranmalıdır.", "en": "Instead of looking for ill intention in believers' behaviors, good intention should be sought."},
-        "no": "I stedet for å lete etter vonde hensikter i troendes handlinger, bør man lete etter gode hensikter."},
-        "Örnek ve Tatbikat": {"tr": "Selam vermeyen birini 'duymamıştır' diye yorumlayıp hüsn-ü zan etmek.", "en": "Interpreting someone who doesn't greet as 'he didn't hear' and having a good opinion."},
-        "no": "Å tolke en som ikke hilser, som at 'han hørte det ikke', og ha gode tanker."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi İkinci Lem'a", "en": "The Twenty-Second Flash", "no": "Det tjueandre glimt"},
-    },
-    {
-        "ID": 190,
-        "Konu": {"tr": "Hakiki Dostun Özellikleri", "en": "Characteristics of a True Friend", "no": "Kjennetegn på en sann venn"},
-        "Öğüt": {"tr": "Hakiki dost, seni dünyada değil ahirette de kurtarmaya çalışandır.", "en": "A true friend is the one who tries to save you not only in the world but also in the hereafter."},
-        "no": "En sann venn er den som forsøker å frelse deg ikke bare i verden, men også i det hinsidige."},
-        "Örnek ve Tatbikat": {"tr": "Arkadaşını günahlardan sakındıran ve ibadete teşvik eden dostlar seçmek.", "en": "Choosing friends who warn their friend against sins and encourage them to worship."},
-        "no": "Å velge venner som advarer sin venn mot synder og oppmuntrer til tilbedelse."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 191,
-        "Konu": {"tr": "Kötülüğe İyilikle Mukabele Etmek", "en": "Responding to Evil with Good", "no": "Å møte ondt med godt"},
-        "Öğüt": {"tr": "Sana fenalık edene iyilikle karşılık verirsen düşmanın dost olur.", "en": "If you respond with good to someone who does evil to you, your enemy becomes a friend."},
-        "no": "Hvis du svarer med godhet til en som gjør deg ondt, blir din fiende en venn."},
-        "Örnek ve Tatbikat": {"tr": "Kötü söz söyleyen birine tatlı dille karşılık verip sükunet sağlamak.", "en": "Responding with sweet speech to someone speaking bad words and ensuring calm."},
-        "no": "Å svare med mildt språk til en som sier stygge ord, og sørge for ro."},
-        "Eser ve Detaylı Kaynak": {"tr": "Mektubat", "en": "Letters", "no": "Brev"},
-    },
-    {
-        "ID": 192,
-        "Konu": {"tr": "İman Hizmetinde Sabit-kadem Olmak", "en": "Being Firm and Steadfast in the Service of Faith", "no": "Å være standhaftig i troens tjeneste"},
-        "Öğüt": {"tr": "Fırtınalar ne kadar şiddetli olursa olsun iman hizmetinde sabit-kadem kalmalıdır.", "en": "No matter how violent the storms are, one must remain firm and steadfast in the service of faith."},
-        "no": "Uansett hvor voldsomme stormene er, må man forbli standhaftig i troens tjeneste."},
-        "Örnek ve Tatbikat": {"tr": "Çeşitli engellemelere rağmen hizmetleri aksatmadan sürdürmek.", "en": "Continuing services without disruption despite various obstacles."},
-        "no": "Å fortsette tjenestene uten avbrudd til tross for ulike hindringer."},
-        "Eser ve Detaylı Kaynak": {"tr": "Barla ve Kastamonu Lahikaları", "en": "Barla and Kastamonu Lahikas", "no": "Barla og Kastamonu Lahikaer"},
-    },
-    {
-        "ID": 193,
-        "Konu": {"tr": "Zayıflara ve Muhtaçlara Merhamet", "en": "Mercy to the Weak and Needy", "no": "Barmhjertighet mot svake og trengende"},
-        "Öğüt": {"tr": "Şefkat ve merhamet imanın bir nurudur; zayıflara el uzatılmalıdır.", "en": "Compassion and mercy are a light of faith; a helping hand must be extended to the weak."},
-        "no": "Medfølelse og barmhjertighet er et lys av tro; en hjelpende hånd må rekkes til de svake."},
-        "Örnek ve Tatbikat": {"tr": "Yaşlı, hasta veya yardıma muhtaç insanlara yardım etmek.", "en": "Helping the elderly, sick, or needy people."},
-        "no": "Å hjelpe eldre, syke eller trengende mennesker."},
-        "Eser ve Detaylı Kaynak": {"tr": "Şualar", "en": "The Rays", "no": "Strålene"},
-    },
-    {
-        "ID": 194,
-        "Konu": {"tr": "Sokak Hayvanlarına Şefkat Göstermek", "en": "Showing Compassion to Street Animals", "no": "Å vise medfølelse med gatehunder og katter"},
-        "Öğüt": {"tr": "Allah'ın sessiz kulları olan hayvanlara merhametle muamele edilmelidir.", "en": "Animals, which are Allah's silent servants, must be treated with mercy."},
-        "no": "Dyr, som er Allahs stille tjenere, må behandles med barmhjertighet."},
-        "Örnek ve Tatbikat": {"tr": "Kapı önlerine aciz hayvanlar için su ve yemek bırakmak.", "en": "Leaving water and food in front of doors for helpless animals."},
-        "no": "Å legge igjen vann og mat foran dørene til hjelpeløse dyr."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Dördüncü Söz", "en": "The Twenty-Fourth Word", "no": "Det tjuefjerde ordet"},
-    },
-    {
-        "ID": 195,
-        "Konu": {"tr": "Tedbirden Sonra Tevekkül Etmek", "en": "Trust in Allah After Precaution", "no": "Å ha tillit til Allah etter forholdsregler"},
-        "Öğüt": {"tr": "İşin başı tedbir, sonu ise Allah'a tam bir tevekküldür.", "en": "The beginning of a matter is precaution, and the end is complete trust in Allah (tevekkül)."},
-        "no": "Begynnelsen på en sak er forholdsregler, og slutten er fullstendig tillit til Allah (tevekkül)."},
-        "Örnek ve Tatbikat": {"tr": "Gerekli tüm hazırlıkları yapıp neticeyi Hakka havale etmek.", "en": "Making all necessary preparations and entrusting the result to the Truth."},
-        "no": "Å gjøre alle nødvendige forberedelser og overlate resultatet til Sannheten."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Üçüncü Söz", "en": "The Twenty-Third Word", "no": "Det tjuetre ordet"},
-    },
-    {
-        "ID": 196,
-        "Konu": {"tr": "Kader Karşısında Metanetli Olmak", "en": "Being Fortitude in the Face of Destiny", "no": "Å være standhaftig overfor skjebnen"},
-        "Öğüt": {"tr": "Kaderin tasarruflarına rıza göstermek kulun imtihanını kazanmasıdır.", "en": "Consenting to the dispositions of destiny is the servant winning his test."},
-        "no": "Å samtykke i skjebnens foranstaltninger er at tjeneren vinner sin prøvelse."},
-        "Örnek ve Tatbikat": {"tr": "Zor bir olay karşısında isyan etmeyip 'Min indillah' bilinciyle karşılamak.", "en": "Not rebelling against a difficult event and greeting it with the consciousness of 'From Allah's presence.'"},
-        "no": "Å ikke gjøre opprør mot en vanskelig hendelse, men møte den med bevisstheten om 'Fra Allahs nærhet.'"},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Altıncı Söz", "en": "The Twenty-Sixth Word", "no": "Det tjuesjette ordet"},
-    },
-    {
-        "ID": 197,
-        "Konu": {"tr": "Duanın Gücüne İnanmak", "en": "Believing in the Power of Supplication (Dua)", "no": "Å tro på bønnens kraft (Dua)"},
-        "Öğüt": {"tr": "Dua, aciz insanın kainatın Rabbine dayandığı en güçlü manevi silahtır.", "en": "Supplication is the most powerful spiritual weapon by which helpless man relies on the Lord of the universe."},
-        "no": "Bønn er det kraftigste åndelige våpenet som det hjelpeløse mennesket lener seg på overfor universets Herre."},
-        "Örnek ve Tatbikat": {"tr": "Sıkıntılı anlarda elleri semaya açıp samimi bir lisanla yalvarmak.", "en": "Opening hands to the sky in troubled moments and pleading with a sincere language."},
-        "no": "Å åpne hendene mot himmelen i vanskelige stunder og be med et oppriktig språk."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Üçüncü Söz", "en": "The Twenty-Third Word", "no": "Det tjuetre ordet"},
-    },
-    {
-        "ID": 198,
-        "Konu": {"tr": "Tövbede Acele Etmek", "en": "Hasting in Repentance", "no": "Å være rask med omvendelse"},
-        "Öğüt": {"tr": "Günah kirliliği kalbi sarmadan derhal tövbe edilip temizlenilmelidir.", "en": "Repentance must be made immediately and cleaned before the dirt of sin surrounds the heart."},
-        "no": "Man må omvende seg umiddelbart og bli renset før syndens smuss omgir hjertet."},
-        "Örnek ve Tatbikat": {"tr": "Farkına varılan bir hata için hemen peşinden istiğfar etmek.", "en": "Seeking forgiveness immediately after a mistake is realized."},
-        "no": "Å søke tilgivelse umiddelbart etter at en feil er innseett."},
-        "Eser ve Detaylı Kaynak": {"tr": "Yirmi Dokuzuncu Lem'a", "en": "The Twenty-Ninth Flash", "no": "Det tjueniende glimt"},
-    },
-    {
-        "ID": 199,
-        "Konu": {"tr": "Nefis Muhasebesi Yapmak", "en": "Practicing Self-Accountability", "no": "Å utføre selvransakelse (Nefis muhasebesi)"},
-        "Öğüt": {"tr": "Akıllı insan, ölmeden önce nefsini hesaba çeken ve ahirete çalışan insandır.", "en": "A wise person is one who calls his soul to account and works for the hereafter before death."},
-        "no": "Et klokt menneske er den som stiller sin sjel til regnskap og arbeider for det hinsidige før døden."},
-        "Örnek ve Tatbikat": {"tr": "Her günün sonunda o gün ne gibi hayır ve şer işlediğini gözden geçirmek.", "en": "Reviewing what kind of good and evil deeds were done that day at the end of every day."},
-        "no": "Å gjennomgå hva slags gode og onde gjerninger man har utført den dagen, på slutten av hver dag."},
-        "Eser ve Detaylı Kaynak": {"tr": "Sözler", "en": "The Words", "no": "Ordene"},
-    },
-    {
-        "ID": 200,
-        "Konu": {"tr": "Kötü Çevreden Uzak Durmak", "en": "Staying Away from Bad Environments", "no": "Å holde seg unna dårlige miljøer"},
-        "Öğüt": {"tr": "İnsanı gaflete ve günaha atan kötü çevrelerden kesinlikle uzak durulmalıdır.", "en": "Bad environments that drag man into heedlessness and sin must be strictly avoided."},
-        "no": "Dårlige miljøer som trekker mennesket inn i uaktsomhet og synd, må unngås strengt."},
-        "Örnek ve Tatbikat": {"tr": "Zararlı alışkanlıkların olduğu ortamlara girmeyip faydalı meclisleri seçmek.", "en": "Choosing useful gatherings instead of entering environments with harmful habits."},
-        "no": "Å velge nyttige forsamlinger i stedet for å oppsøke steder med skadelige vaner."},
-        "Eser ve Detaylı Kaynak": {"tr": "Gençlik Rehberi / Dokuzuncu Söz", "en": "Guide for Youth / The Ninth Word", "no": "Ungdommens veiledning / Det niende ordet"},
-   ]
-aktif_dil_key = "tr" if dil_secimi == "Türkçe" else ("en" if dil_secimi == "English" else "no")
-
-# --- KENAR ÇUBUĞU FİLTRELERİ ---
-st.sidebar.header(t["search_label"])
-arama = st.sidebar.text_input(t["search_input"])
-
-kategoriler = [t["all_categories"]] + sorted(list(set([d["Konu"][aktif_dil_key] for d in veriler])))
-secilen_kategori = st.sidebar.selectbox(t["category_label"], kategoriler)
-
-filtreli_veriler = veriler
-if arama:
-    filtreli_veriler = [
-        d for d in filtreli_veriler 
-        if arama.lower() in d["Konu"][aktif_dil_key].lower() or arama.lower() in d["Öğüt"][aktif_dil_key].lower()
-    ]
-
-if secilen_kategori != t["all_categories"]:
-    filtreli_veriler = [d for d in filtreli_veriler if d["Konu"][aktif_dil_key] == secilen_kategori]
-
-st.subheader(f"{t['displayed_count']} ({len(filtreli_veriler)})")
-
-# --- KARTLAR HALİNDE GÖSTERİM ---
-for item in filtreli_veriler:
-    konu = item["Konu"][aktif_dil_key]
-    ogut = item["Öğüt"][aktif_dil_key]
-    ornek = item["Örnek ve Tatbikat"][aktif_dil_key]
-    kaynak = item["Eser ve Detaylı Kaynak"][aktif_dil_key]
-
-    st.markdown(
-        f"""
-        <div class="nasihat-card">
-            <div class="nasihat-header">📌 {item['ID']}. {konu}</div>
-            <div class="nasihat-text"><b>{t['col_ogut']}:</b> {ogut}</div>
-            <div class="nasihat-text"><b>{t['col_ornek']}:</b> {ornek}</div>
-            <div style="margin-top: 10px;">
-                <span class="source-badge">📖 {kaynak}</span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+def akilli_temizle(metin):
+    if not metin:
+        return ""
+    metin = metin.lower()
+    return "".join(
+        c
+        for c in unicodedata.normalize("NFD", metin)
+        if unicodedata.category(c) != "Mn"
     )
 
-# --- TELİF VE KULLANIM BİLDİRİMİ (FOOTER) ---
-st.markdown("---")
+
+# ================================================================================
+# 3. VERİ KÜMESİ (TR & EN ÇİFT DİLLİ TAM ARŞİV)
+# ================================================================================
+DERIN_ILIM_ARSIVI = [
+    {
+        "id": 1,
+        "tr": {
+            "zat": "Bediüzzaman Said Nursi",
+            "unvan": "Bediüzzaman -kuddise sırruh-",
+            "kategori": "Sabır ve Şükür",
+            "soz": "Musibet, sabır içinde şükrettirir; şükür içinde sabır ister.",
+            "soz_kaynagi": "Lem'alar, On Yedinci Lem'a",
+            "ayet": "Şüphesiz sabredenlere mükafatları hesapsız olarak ödenir.",
+            "ayet_kaynagi": "Zümer Suresi, 10. Ayet",
+            "hadis": "Müminin durumu ne gariptir! Onun her işi hayırdır... Eğer başına bir sevinç gelirse şükreder, bu onun için hayır olur; bir sıkıntı gelirse sabreder, bu da onun için hayır olur.",
+            "hadis_kaynagi": "Müslim, Zühd, 64",
+        },
+        "en": {
+            "zat": "Bediuzzaman Said Nursi",
+            "unvan": "Bediuzzaman -may his secret be sanctified-",
+            "kategori": "Patience and Gratitude",
+            "soz": "Calamity evokes gratitude within patience, and demands patience within gratitude.",
+            "soz_kaynagi": "The Flashes, Seventeenth Flash",
+            "ayet": "Only those who are patient will be given their reward without account.",
+            "ayet_kaynagi": "Surah Az-Zumar, Verse 10",
+            "hadis": "How wonderful is the affair of the believer! Every affair of his is good... If prosperity comes to him, he expresses gratitude and it is good for him; if adversity befalls him, he endures it patiently and it is good for him.",
+            "hadis_kaynagi": "Muslim, Asceticism, 64",
+        },
+    },
+    {
+        "id": 2,
+        "tr": {
+            "zat": "Şeyh Halil Fevzi",
+            "unvan": "Halil Fevzi Efendi -kuddise sırruh-",
+            "kategori": "Teslimiyet ve Sadakat",
+            "soz": "Hakk'ın kazasına rıza göstermek, kalbin en büyük zenginliğidir.",
+            "soz_kaynagi": "Divan-ı Halil",
+            "ayet": "...Allah'a dayanın. Eğer müminlerseniz.",
+            "ayet_kaynagi": "Maide Suresi, 23. Ayet",
+            "hadis": "İşlerin hayırlısı orta olanıdır. Kim Allah'a tevekkül ederse, O ona kafidir.",
+            "hadis_kaynagi": "Taberani",
+        },
+        "en": {
+            "zat": "Shaykh Khalil Fawzi",
+            "unvan": "Khalil Fawzi Efendi -may his secret be sanctified-",
+            "kategori": "Submission and Loyalty",
+            "soz": "Consenting to the decree of the Truth is the greatest wealth of the heart.",
+            "soz_kaynagi": "Divan of Khalil",
+            "ayet": "...And upon Allah rely, if you should be believers.",
+            "ayet_kaynagi": "Surah Al-Ma'idah, Verse 23",
+            "hadis": "The best of affairs is the moderate one. Whoever relies upon Allah, He is sufficient for him.",
+            "hadis_kaynagi": "Tabarani",
+        },
+    },
+    {
+        "id": 3,
+        "tr": {
+            "zat": "Mevlana Celaleddin Rumi",
+            "unvan": "Hz. Mevlana -kuddise sırruh-",
+            "kategori": "Aşk ve Marifet",
+            "soz": "Kusur arıyorsan, bütün aynalar senindir.",
+            "soz_kaynagi": "Mesnevi",
+            "ayet": "Kendi nefislerinizde de deliller vardır; hâlâ görmez misiniz?",
+            "ayet_kaynagi": "Zâriyât Suresi, 21. Ayet",
+            "hadis": "Ameller niyetlere göredir.",
+            "hadis_kaynagi": "Buhari, Bed'ü'l-Vahy, 1",
+        },
+        "en": {
+            "zat": "Mawlana Jalaluddin Rumi",
+            "unvan": "Mawlana Rumi -may his secret be sanctified-",
+            "kategori": "Love and Gnosis",
+            "soz": "If you are looking for faults, all mirrors belong to you.",
+            "soz_kaynagi": "Masnavi",
+            "ayet": "And on the earth are signs for the certain in faith, and in your own selves. Then will you not see?",
+            "ayet_kaynagi": "Surah Adh-Dhariyat, Verse 21",
+            "hadis": "Actions are judged by intentions.",
+            "hadis_kaynagi": "Bukhari, Revelation, 1",
+        },
+    },
+    {
+        "id": 4,
+        "tr": {
+            "zat": "Yunus Emre",
+            "unvan": "Anadolu'nun Gönül Dili -kuddise sırruh-",
+            "kategori": "İnsan ve Muhabbet",
+            "soz": "Yaradılanı severiz, Yaradandan ötürü.",
+            "soz_kaynagi": "Risaletü'n-Nushiyye",
+            "ayet": "Şüphesiz müminler ancak kardeştirler.",
+            "ayet_kaynagi": "Hucurât Suresi, 10. Ayet",
+            "hadis": "İman etmedikçe cennete giremezsiniz; birbirinizi sevmedikçe iman etmiş olmazsınız.",
+            "hadis_kaynagi": "Müslim, İman, 93",
+        },
+        "en": {
+            "zat": "Yunus Emre",
+            "unvan": "Spiritual Voice of Anatolia -may his secret be sanctified-",
+            "kategori": "Humanity and Love",
+            "soz": "We love the created for the sake of the Creator.",
+            "soz_kaynagi": "Risalat al-Nushiyyah",
+            "ayet": "The believers are but brothers, so make settlement between your brothers.",
+            "ayet_kaynagi": "Surah Al-Hujurat, Verse 10",
+            "hadis": "You will not enter Paradise until you believe, and you will not believe until you love one another.",
+            "hadis_kaynagi": "Muslim, Faith, 93",
+        },
+    },
+    {
+        "id": 5,
+        "tr": {
+            "zat": "Hacı Bektaş-ı Veli",
+            "unvan": "Hacı Bektaş -kuddise sırruh-",
+            "kategori": "Edep ve İlim",
+            "soz": "İlim suretten hakikate geçiş köprüsüdür. En büyük keramet ahlaktır.",
+            "soz_kaynagi": "Makalat",
+            "ayet": "İyilikle kötülük bir olmaz. Sen kötülüğü en güzel olanla sav.",
+            "ayet_kaynagi": "Fussilet Suresi, 34. Ayet",
+            "hadis": "Mümin, elinden ve dilinden diğer müminlerin güvende olduğu kişidir.",
+            "hadis_kaynagi": "Buhari, İman, 4",
+        },
+        "en": {
+            "zat": "Haji Bektash Veli",
+            "unvan": "Haji Bektash -may his secret be sanctified-",
+            "kategori": "Manners and Knowledge",
+            "soz": "Knowledge is a bridge from form to truth. The greatest miracle is good character.",
+            "soz_kaynagi": "Makalat",
+            "ayet": "And not equal are the good deed and the bad. Repel [evil] by that which is better.",
+            "ayet_kaynagi": "Surah Fussilat, Verse 34",
+            "hadis": "A believer is the one from whose tongue and hand other believers are safe.",
+            "hadis_kaynagi": "Bukhari, Faith, 4",
+        },
+    },
+    {
+        "id": 6,
+        "tr": {
+            "zat": "Hasan-ı Basri",
+            "unvan": "Tabiûnun Büyük Zâhidi -rahmetullahi aleyh-",
+            "kategori": "Zühd ve Takva",
+            "soz": "Dünya müminin zindanı, kafirin cennetidir. Ahiret ise bunun tersidir.",
+            "soz_kaynagi": "Hilyetü'l-Evliyâ",
+            "ayet": "Dünya hayatı ancak bir oyun ve eğlenceden ibarettir.",
+            "ayet_kaynagi": "Ankebût Suresi, 64. Ayet",
+            "hadis": "Dünyada sanki bir garip veya yolcu gibi ol.",
+            "hadis_kaynagi": "Buhari, Rikāk, 3",
+        },
+        "en": {
+            "zat": "Hasan al-Basri",
+            "unvan": "Great Ascetic of Tabi'un -may Allah have mercy on him-",
+            "kategori": "Asceticism and Piety",
+            "soz": "The world is a prison for the believer and a paradise for the disbeliever. The hereafter is the opposite.",
+            "soz_kaynagi": "Hilyat al-Awliya",
+            "ayet": "And this worldly life is not but diversion and amusement.",
+            "ayet_kaynagi": "Surah Al-Ankabut, Verse 64",
+            "hadis": "Be in this world as if you were a stranger or a traveler.",
+            "hadis_kaynagi": "Bukhari, Softening the Heart, 3",
+        },
+    },
+    {
+        "id": 7,
+        "tr": {
+            "zat": "Ahmed Yesevi",
+            "unvan": "Pir-i Türkistan -kuddise sırruh-",
+            "kategori": "Hikmet ve Hizmet",
+            "soz": "Gönül kırıp can incitmekten sakın; hakikatte her can bir emanettir.",
+            "soz_kaynagi": "Divan-ı Hikmet",
+            "ayet": "Müminler ancak kardeştirler, kardeşlerinizin arasını düzeltin.",
+            "ayet_kaynagi": "Hucurât Suresi, 10. Ayet",
+            "hadis": "Müslüman, elinden ve dilinden Müslümanların güvende olduğu kimsedir.",
+            "hadis_kaynagi": "Buhari, İman, 4",
+        },
+        "en": {
+            "zat": "Ahmad Yasawi",
+            "unvan": "Master of Turkestan -may his secret be sanctified-",
+            "kategori": "Wisdom and Service",
+            "soz": "Refrain from breaking hearts and hurting souls; in truth, every soul is a trust.",
+            "soz_kaynagi": "Divan-i Hikmet",
+            "ayet": "The believers are but brothers, so make settlement between your brothers.",
+            "ayet_kaynagi": "Surah Al-Hujurat, Verse 10",
+            "hadis": "A Muslim is the one from whose tongue and hand other Muslims are safe.",
+            "hadis_kaynagi": "Bukhari, Faith, 4",
+        },
+    },
+    {
+        "id": 8,
+        "tr": {
+            "zat": "Hacı Bayram-ı Veli",
+            "unvan": "Ankara Piri -kuddise sırruh-",
+            "kategori": "Acziyet ve İrfan",
+            "soz": "Nefsini bilen Rabbini bilir. Acziyetini idrak eden ilahi ikrama mazhar olur.",
+            "soz_kaynagi": "Bayrami Menakıbı",
+            "ayet": "Ey insanlar, siz Allah'a muhtaçsınız. Allah ise her bakımdan zengindir.",
+            "ayet_kaynagi": "Fâtır Suresi, 15. Ayet",
+            "hadis": "Kim Allah için alçakgönüllü olursa, Allah onu yüceltir.",
+            "hadis_kaynagi": "Müslim, Birr, 69",
+        },
+        "en": {
+            "zat": "Haji Bayram Veli",
+            "unvan": "Master of Ankara -may his secret be sanctified-",
+            "kategori": "Helplessness and Gnosis",
+            "soz": "He who knows his ego knows his Lord. Whoever realizes his helplessness receives divine favor.",
+            "soz_kaynagi": "Bayrami Hagiography",
+            "ayet": "O mankind, you are those in need of Allah, while Allah is the Free of need, the Praiseworthy.",
+            "ayet_kaynagi": "Surah Fatir, Verse 15",
+            "hadis": "Whoever humbles himself for the sake of Allah, Allah will elevate him.",
+            "hadis_kaynagi": "Muslim, Virtue, 69",
+        },
+    },
+    {
+        "id": 9,
+        "tr": {
+            "zat": "Akşemseddin",
+            "unvan": "İstanbul'un Manevi Fatihi -kuddise sırruh-",
+            "kategori": "Fetih ve İhlas",
+            "soz": "Gönüller fethedilmeden topraklar kalıcı olarak kazanılmaz.",
+            "soz_kaynagi": "Risaletü'n-Nûriyye",
+            "ayet": "Allah size kesin bir zafer nasip edecektir.",
+            "ayet_kaynagi": "Fetih Suresi, 3. Ayet",
+            "hadis": "Ameller niyetlere göredir.",
+            "hadis_kaynagi": "Buhari, Bed'ü'l-Vahy, 1",
+        },
+        "en": {
+            "zat": "Aqshamsaddin",
+            "unvan": "Spiritual Conqueror of Istanbul -may his secret be sanctified-",
+            "kategori": "Conquest and Sincerity",
+            "soz": "Lands cannot be permanently won unless hearts are conquered first.",
+            "soz_kaynagi": "Risalat al-Nuriyyah",
+            "ayet": "And that Allah may aid you with a mighty victory.",
+            "ayet_kaynagi": "Surah Al-Fath, Verse 3",
+            "hadis": "Actions are judged by intentions.",
+            "hadis_kaynagi": "Bukhari, Revelation, 1",
+        },
+    },
+    {
+        "id": 10,
+        "tr": {
+            "zat": "Aziz Mahmud Hüdayi",
+            "unvan": "Hüdayi Hazretleri -kuddise sırruh-",
+            "kategori": "Dua ve Yakarış",
+            "soz": "Ey Rabbimiz! Lütfunla kalplerimizi nurlandır, bizi rızandan ayırma.",
+            "soz_kaynagi": "Hüdayi Divanı",
+            "ayet": "Bana dua edin, duanıza icabet edeyim.",
+            "ayet_kaynagi": "Mü'min Suresi, 60. Ayet",
+            "hadis": "Dua ibadetin ta kendisidir.",
+            "hadis_kaynagi": "Tirmizi, Deavât, 1",
+        },
+        "en": {
+            "zat": "Aziz Mahmud Hudayi",
+            "unvan": "Hazrat Hudayi -may his secret be sanctified-",
+            "kategori": "Prayer and Supplication",
+            "soz": "O Lord! Illuminate our hearts with Your grace, do not separate us from Your pleasure.",
+            "soz_kaynagi": "Divan of Hudayi",
+            "ayet": "Call upon Me; I will respond to you.",
+            "ayet_kaynagi": "Surah Ghafir, Verse 60",
+            "hadis": "Supplication is worship itself.",
+            "hadis_kaynagi": "Tirmidhi, Supplications, 1",
+        },
+    },
+    {
+        "id": 11,
+        "tr": {
+            "zat": "İbrahim Hakkı Erzurumlu",
+            "unvan": "Erzurumlu İbrahim Hakkı -kuddise sırruh-",
+            "kategori": "Marifetname Hikmeti",
+            "soz": "Mevla görelim neyler, neylerse güzel eyler.",
+            "soz_kaynagi": "Marifetname",
+            "ayet": "Olur ki bir şey sizin için hayırlıyken, siz onu hoş görmezsiniz.",
+            "ayet_kaynagi": "Bakara Suresi, 216. Ayet",
+            "hadis": "Müminin her işi hayırdır.",
+            "hadis_kaynagi": "Müslim, Zühd, 64",
+        },
+        "en": {
+            "zat": "Ibrahim Hakki Erzurumi",
+            "unvan": "Ibrahim Hakki of Erzurum -may his secret be sanctified-",
+            "kategori": "Wisdom of Marifetname",
+            "soz": "Let us see what the Lord does; whatever He does, He does well.",
+            "soz_kaynagi": "Marifetname",
+            "ayet": "But perhaps you hate a thing and it is good for you.",
+            "ayet_kaynagi": "Surah Al-Baqarah, Verse 216",
+            "hadis": "Every affair of the believer is good.",
+            "hadis_kaynagi": "Muslim, Asceticism, 64",
+        },
+    },
+]
+
+# ================================================================================
+# 4. SOL KENAR ÇUBUĞU (SIDEBAR) VE FİLTRELEME
+# ================================================================================
+st.sidebar.markdown(f"### {t('sidebar_title')}")
+st.sidebar.caption(t("info_note"))
+st.sidebar.markdown("---")
+
+with st.sidebar.expander(t("legal_warning_title")):
+    st.sidebar.caption(t("legal_warning_body"))
+
+st.sidebar.markdown(f"### 🔍 {t('select_person')}")
+
+tum_zatlar = [t("all_option")] + sorted(
+    list(
+        set(
+            [
+                item["en"]["zat"] if lang == "EN" else item["tr"]["zat"]
+                for item in DERIN_ILIM_ARSIVI
+            ]
+        )
+    )
+)
+
+secilen_zat = st.sidebar.selectbox(t("select_person"), tum_zatlar)
+
+st.sidebar.divider()
+st.sidebar.markdown(f"### {t('daily_guide_title')}")
+gunun_indeks = datetime.now().day % len(DERIN_ILIM_ARSIVI)
+guncel_hikmet = (
+    DERIN_ILIM_ARSIVI[gunun_indeks]["en"]
+    if lang == "EN"
+    else DERIN_ILIM_ARSIVI[gunun_indeks]["tr"]
+)
+
+st.sidebar.info(
+    f"**{guncel_hikmet['zat']}**\n\n{t('daily_climate').format(guncel_hikmet['kategori'])}"
+)
+
+# ================================================================================
+# 5. ANA EKRAN RENDER MANTIĞI
+# ================================================================================
 st.markdown(
     f"""
-    <div class="telif-box">
-        <b>{t['telif_title']}</b><br><br>
-        • {t['telif_1']}<br>
-        • {t['telif_2']}<br>
-        • {t['telif_3']}<br>
-        • {t['telif_4']}
+    <div style="padding: 10px 0;">
+        <h1>{t('page_title')}</h1>
+        <p>{t('page_subtitle')}</p>
     </div>
-    """,
+""",
     unsafe_allow_html=True,
 )
+
+arama_metni = st.text_input(
+    t("search_label"), placeholder=t("search_placeholder")
+)
+temiz_arama = akilli_temizle(arama_metni)
+
+filtrelenmis_liste = []
+for veri in DERIN_ILIM_ARSIVI:
+    dil_verisi = veri["en"] if lang == "EN" else veri["tr"]
+
+    # Zat Seçimi Filtresi
+    if secilen_zat != t("all_option") and dil_verisi["zat"] != secilen_zat:
+        continue
+
+    # Arama Metni Filtresi
+    if temiz_arama:
+        birlesik_metin = akilli_temizle(
+            f"{dil_verisi['zat']} {dil_verisi['unvan']} {dil_verisi['kategori']} "
+            f"{dil_verisi['soz']} {dil_verisi['soz_kaynagi']} {dil_verisi['ayet']} "
+            f"{dil_verisi['ayet_kaynagi']} {dil_verisi['hadis']} {dil_verisi['hadis_kaynagi']}"
+        )
+        if temiz_arama in birlesik_metin:
+            filtrelenmis_liste.append((veri["id"], dil_verisi))
+    else:
+        filtrelenmis_liste.append((veri["id"], dil_verisi))
+
+if temiz_arama:
+    if filtrelenmis_liste:
+        st.info(t("results_found").format(len(filtrelenmis_liste)))
+    else:
+        st.warning(t("no_results"))
+
+# ================================================================================
+# 6. KARTLARIN EKRANA BASTIRILMASI
+# ================================================================================
+st.divider()
+
+if not filtrelenmis_liste:
+    st.warning(t("no_results"))
+else:
+    for item_id, content in filtrelenmis_liste:
+        col1, col2 = st.columns([1, 1])
+
+        with col1:
+            st.markdown(
+                f"""
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 10px; border-left: 5px solid #0f172a; margin-bottom: 15px; min-height: 220px;">
+                    <div style="color: #0f172a; font-weight: bold; font-size: 1.1rem;">
+                        {content['zat']} <span style="font-size: 0.8rem; font-weight: normal; color: #64748b;">({content['unvan']})</span>
+                    </div>
+                    <small><b>{t('category_label')}:</b> {content['kategori']}</small>
+                    <p style="font-size: 1.05rem; font-style: italic; color: #1e293b; margin-top: 10px;">"{content['soz']}"</p>
+                    <hr style="margin: 10px 0; border: none; border-top: 1px solid #e2e8f0;">
+                    <p style="font-size: 0.85rem; color: #64748b; margin: 0;"><b>{t('source_label')}:</b> {content['soz_kaynagi']}</p>
+                </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+        with col2:
+            st.markdown(
+                f"""
+                <div style="background-color: #f0fdf4; padding: 15px; border-radius: 10px; border-left: 5px solid #166534; margin-bottom: 10px;">
+                    <div style="color: #166534; font-weight: bold; font-size: 0.95rem;">{t('verse_title')}</div>
+                    <p style="font-size: 0.95rem; color: #14532d; margin-top: 5px; margin-bottom: 5px;">"{content['ayet']}"</p>
+                    <p style="font-size: 0.8rem; color: #166534; margin: 0;"><b>{t('source_label')}:</b> {content['ayet_kaynagi']}</p>
+                </div>
+                <div style="background-color: #fefce8; padding: 15px; border-radius: 10px; border-left: 5px solid #854d0e; margin-bottom: 15px;">
+                    <div style="color: #854d0e; font-weight: bold; font-size: 0.95rem;">{t('hadith_title')}</div>
+                    <p style="font-size: 0.95rem; color: #713f12; margin-top: 5px; margin-bottom: 5px;">"{content['hadis']}"</p>
+                    <p style="font-size: 0.8rem; color: #854d0e; margin: 0;"><b>{t('source_label')}:</b> {content['hadis_kaynagi']}</p>
+                </div>
+            """,
+                unsafe_allow_html=True,
+            )
